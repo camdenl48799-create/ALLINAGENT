@@ -88,6 +88,24 @@ The important distinction is:
 
 Requires **Python 3.10+**.
 
+### Windows PowerShell bootstrap
+
+On a fresh Windows machine, use the repository bootstrap installer first:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\install.ps1
+```
+
+The installer downloads the source, creates an isolated environment under `%LOCALAPPDATA%\ALLINAGENT`, installs ALLINAGENT, and verifies the CLI. It does **not** pipe downloaded code into `Invoke-Expression`.
+
+After the bootstrap step, add `%LOCALAPPDATA%\ALLINAGENT\bin` to your PATH. Then the normal activation command is:
+
+```powershell
+allinagent activate
+```
+
+`allinagent activate` is the installed CLI's setup/verification command; the bootstrap installer is what makes the command available on a completely fresh machine.
+
 ### Local-only installation
 
 ```bash
