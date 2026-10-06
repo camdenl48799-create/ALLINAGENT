@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "allinagent"
-version = "0.5.0"
+version = "1.0.0"
 description = "An independent, local-first AI coding agent"
 requires-python = ">=3.10"
 license = {text = "MIT"}
