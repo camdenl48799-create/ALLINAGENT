@@ -42,6 +42,15 @@ class LocalBrain:
         self._patterns: list[tuple[str, tuple[str, ...], int]] = [
             ("identity", (r"\bwho are you\b", r"\bwhat are you\b"), 100),
             ("help", (r"^help$", r"\bwhat can you do\b", r"\bcommands\b"), 95),
+            ("onboarding", (
+                r"^what do i do\??$",
+                r"^how do i (get )?started\??$",
+                r"^how do i set (this|it) up\??$",
+                r"^how do i use (this|it)\??$",
+                r"^how does this work\??$",
+                r"\bgetting started\b",
+                r"\bsetup (help|guide)\b",
+            ), 98),
             ("capabilities", (r"\bcapabilit(?:y|ies)\b", r"\bpermissions\b", r"\bsafety\b"), 90),
             ("summary", (
                 r"\banaly[sz]e\b.*\b(project|repo|repository|code)\b",
@@ -126,6 +135,7 @@ class LocalBrain:
         handlers = {
             "identity": self._identity,
             "help": self._help,
+            "onboarding": self._onboarding,
             "capabilities": self._capabilities,
             "summary": self._summary,
             "storage": self._storage,
@@ -169,6 +179,29 @@ Safety
 
 For broader reasoning, explicitly opt into an OpenAI-compatible model with --llm.
 """
+
+    def _onboarding(self) -> str:
+        return """ALLINAGENT GETTING STARTED
+
+1. Open a project folder as your workspace.
+2. Start ALLINAGENT with: allinagent
+3. Ask it to inspect your project:
+     analyze project
+4. Read files:
+     read file README.md
+5. Search the project:
+     find TODO
+6. Ask for a safe plan:
+     plan <task>
+
+When you are ready for ALLINAGENT to change files, use:
+  --allow-write
+
+Shell commands are separately protected and require:
+  --allow-shell
+
+You do not need an API key for the local brain. Local mode keeps your
+project and prompts on your machine."""
 
     def _capabilities(self) -> str:
         return self.tools.capability_report()
@@ -279,6 +312,7 @@ Local mode never sends code or prompts to a network service."""
         return (
             "who are you",
             "help",
+            "how do i get started",
             "capabilities",
             "analyze project",
             "list files",
