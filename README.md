@@ -1,113 +1,115 @@
 # ALLINAGENT
 
-**Local-first AI coding agent** that works on your machine, in your project folder.
+**Its own local-first AI coding agent.**
 
-It talks to any OpenAI-compatible API (OpenAI, OpenRouter, Groq, Ollama, LM Studio, vLLM, etc.), uses real tool calling, and stays sandboxed to the workspace you give it.
+ALLINAGENT is not a ChatGPT wrapper. It is an independent agent that:
+
+- Runs **on your machine**, in **your project folder**
+- Owns a **local brain** that works **with zero API key**
+- Optionally uses any OpenAI-compatible model (including ones you host) as a *reasoning accelerator* — not as its identity
+
+```text
+You → ALLINAGENT (local brain + tools)
+              ↘ optional external model (only if you want)
+```
+
+## Why this exists
+
+Most “AI coding agents” are thin clients around someone else’s chat product. ALLINAGENT flips that: the agent, tools, and offline behavior are first-class. External models are optional fuel, not the product.
 
 ## Features
 
-- **Real agent loop** — multi-step tool calling with an LLM (not keyword matching)
-- **Safe by default** — only operates inside the chosen workspace; write/shell need explicit flags
-- **Useful tools** — list files, read, write, search text, project summary, storage report, optional shell
-- **One-shot or interactive** — `allinagent "fix the login bug"` or a REPL session
-- **Local-first** — point at Ollama / LM Studio / any compatible endpoint; your code stays local
-
-## Requirements
-
-- Python 3.10+
-- An API key for an OpenAI-compatible provider (or a local server that needs none)
+| Capability | Offline (local brain) | With optional LLM |
+|------------|----------------------|-------------------|
+| Identity / help | ✓ | ✓ |
+| Project analyze / list / read / search | ✓ | ✓ |
+| Storage / cleanup report | ✓ | ✓ |
+| Multi-step coding plans | limited | ✓ |
+| Write / shell | gated flags | gated flags |
 
 ## Install
 
 ```bash
-# From the repo
-pip install -e .
-
-# Or just run without installing
-pip install openai
-python -m allinagent --help
+pip install -e .                 # local brain only — no extra deps
+pip install -e ".[llm]"          # + openai SDK for external / local models
 ```
 
-## Quick start
+Python 3.10+.
+
+## Quick start (no API key)
 
 ```bash
-export ALLINAGENT_API_KEY=sk-...          # or OPENAI_API_KEY
-# Optional overrides:
-# export ALLINAGENT_BASE_URL=https://api.openai.com/v1
-# export ALLINAGENT_MODEL=gpt-4o-mini
-
 cd /path/to/your/project
+allinagent "who are you"
 allinagent "analyze this project"
-allinagent "find the largest files and summarize what can be cleaned safely"
-allinagent --interactive                  # REPL
+allinagent "search TODO"
+allinagent "storage report"
+allinagent -i                    # REPL
+allinagent --local "list files"  # force local brain
 ```
 
-### Local models (Ollama example)
+## Optional model (still ALLINAGENT)
+
+```bash
+export ALLINAGENT_API_KEY=sk-...
+# export ALLINAGENT_BASE_URL=https://api.openai.com/v1
+# export ALLINAGENT_MODEL=gpt-4o-mini
+allinagent --llm "refactor the CLI help text"
+```
+
+**Your own model (Ollama):**
 
 ```bash
 export ALLINAGENT_BASE_URL=http://127.0.0.1:11434/v1
-export ALLINAGENT_API_KEY=ollama          # any non-empty string is fine
+export ALLINAGENT_API_KEY=ollama
 export ALLINAGENT_MODEL=llama3.2
-allinagent "list the Python modules and describe the entry points"
+pip install -e ".[llm]"
+allinagent --llm "explain the entry points"
 ```
 
-### Dry-run (inspect only)
-
-```bash
-allinagent --dry-run "propose a cleanup for node_modules and caches"
-```
-
-Writes and shell are disabled unless you pass `--allow-write` / `--allow-shell`.
+If the external model fails, ALLINAGENT falls back to its local brain instead of dying.
 
 ## CLI
 
 ```
 allinagent [options] [prompt...]
 
-  --workspace PATH     Project root (default: current directory)
-  --interactive, -i    Chat REPL until you type exit/quit
-  --dry-run            Never modify files or run shell
-  --allow-write        Permit write_file
-  --allow-shell        Permit run_shell (still sandboxed to workspace)
-  --model NAME         Override ALLINAGENT_MODEL
-  --base-url URL       Override ALLINAGENT_BASE_URL
-  --max-steps N        Max tool rounds per turn (default: 12)
+  --workspace PATH   Project root (default: .)
+  --interactive, -i  REPL
+  --local            Force local brain (no external model)
+  --llm              Prefer external model when configured
+  --dry-run          No writes / shell
+  --allow-write      Enable write_file
+  --allow-shell      Enable run_shell
+  --model NAME
+  --base-url URL
+  --max-steps N
+  --verbose, -v
 ```
 
-## Environment
-
-| Variable | Default | Meaning |
-|----------|---------|---------|
-| `ALLINAGENT_API_KEY` or `OPENAI_API_KEY` | — | API key |
-| `ALLINAGENT_BASE_URL` | `https://api.openai.com/v1` | Compatible base URL |
-| `ALLINAGENT_MODEL` | `gpt-4o-mini` | Model name |
+In the REPL: `status`, `reset`, `exit`.
 
 ## Architecture
 
 ```
 allinagent/
-  cli.py       argparse + REPL
-  agent.py     tool-calling loop
-  tools.py     sandboxed workspace tools
-  config.py    env / defaults
-  prompts.py   system prompt
+  local_brain.py   ALLINAGENT's own offline reasoning
+  agent.py         Routes local brain vs optional LLM tool loop
+  tools.py         Sandboxed workspace tools (the body)
+  prompts.py       Identity when an external model is used
+  config.py        Env / defaults
+  cli.py           CLI + REPL
 ```
 
-The agent sends your message + conversation history to the model with a fixed set of tools. The model returns either a final answer or tool calls; results are fed back until it finishes or hits `--max-steps`.
+**Default path:** local brain if it can handle the task or no key is set.  
+**Opt-in path:** `--llm` + API key / local server for harder multi-step work.
 
-## Safety notes
+## Safety
 
-- Paths are resolved under the workspace; path traversal is rejected.
-- `write_file` and `run_shell` are off by default.
-- Shell runs with `cwd=workspace` and a simple timeout; still treat it as powerful.
-- Prefer `--dry-run` when exploring unfamiliar repos.
-
-## Roadmap ideas
-
-- Persistent session memory / project memory file
-- Git-aware tools (status, diff, commit draft)
-- Streaming output
-- MCP / external tool plugins
+- Paths cannot escape the workspace
+- Writes and shell are **off** unless you pass flags
+- `--dry-run` disables mutations even if those flags are set
+- Local brain never sends your code anywhere
 
 ## License
 
