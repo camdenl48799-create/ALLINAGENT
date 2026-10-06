@@ -1,6 +1,6 @@
 # ALLINAGENT
 
-> **v0.7.2 — Current release**
+> **v1.0.0 — Current release**
 
 **An independent, local-first AI coding agent.**  
 ALLINAGENT is the product. Models are optional fuel.
@@ -16,7 +16,7 @@ Your code stays on your machine in local mode unless you explicitly choose an ex
 - 🧪 Dry-run mode
 - 🔎 Project summaries, file reading, search, storage reports
 - 🤖 Optional OpenAI-compatible reasoning
-- 🪶 Small Python codebase
+- 🧠 Persistent local project/conversation memory
 - 📜 MIT licensed
 
 ## 🏗️ How it works
@@ -207,7 +207,7 @@ ALLINAGENT/
 └── README.md
 ```
 
-## 🧭 Roadmap
+## 🏁 v1.0.0\n\nThe 1.0.0 milestone adds persistent local memory. Conversation turns are stored in a plain `.allinagent-memory.json` file inside the workspace. ALLINAGENT does not sync this memory itself.\n\nALLINAGENT can use its workspace tools plus optional reasoning to inspect, create, edit, test, and verify projects.\n\n## 🧭 Roadmap
 
 - Smarter multi-step local reasoning
 - Persistent offline project memory
