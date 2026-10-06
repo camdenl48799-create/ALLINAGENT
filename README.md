@@ -1,5 +1,7 @@
 # ALLINAGENT
 
+> **v0.5.0 — Current release**
+
 > **An independent, local-first AI coding agent.**
 >
 > **ALLINAGENT is the product. Models are optional fuel.**
@@ -47,6 +49,8 @@ The offline brain currently understands commands such as:
 
 - `who are you`
 - `help`
+- `how do I get started?`
+- `how do I set this up?`
 - `capabilities`
 - `analyze project`
 - `list files`
@@ -87,6 +91,16 @@ The important distinction is:
 ## Installation
 
 Requires **Python 3.10+**.
+
+### New here?
+
+If you are not sure what to do, start ALLINAGENT and type:
+
+```text
+how do I get started?
+```
+
+ALLINAGENT will walk you through the basic setup and usage.
 
 ### Windows PowerShell bootstrap
 
