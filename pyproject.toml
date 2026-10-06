@@ -5,8 +5,12 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "allinagent"
 version = "0.1.0"
-description = "A local-first AI coding agent"
+description = "An independent, local-first AI coding agent"
 requires-python = ">=3.10"
+license = {text = "MIT"}
+
+[project.optional-dependencies]
+llm = ["openai>=1.0"]
 
 [project.scripts]
 allinagent = "allinagent.cli:main"
