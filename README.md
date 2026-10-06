@@ -1,6 +1,6 @@
 # ALLINAGENT
 
-> **v0.5.0 — Current release**
+> **v0.7.2 — Current release**
 
 **An independent, local-first AI coding agent.**  
 ALLINAGENT is the product. Models are optional fuel.
