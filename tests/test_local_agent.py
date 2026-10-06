@@ -159,3 +159,16 @@ def test_local_brain_available_commands_are_stable(workspace: Path) -> None:
     commands = LocalBrain(WorkspaceTools(workspace)).available_commands()
     assert "who are you" in commands
     assert "read file <path>" in commands
+
+
+def test_local_brain_handles_getting_started(workspace: Path) -> None:
+    brain = LocalBrain(WorkspaceTools(workspace))
+    result = brain.run("how do I get started?")
+    assert "GETTING STARTED" in result
+    assert "allinagent" in result
+    assert "--allow-write" in result
+
+
+def test_local_brain_handles_setup_question(workspace: Path) -> None:
+    brain = LocalBrain(WorkspaceTools(workspace))
+    assert brain.can_handle("how do I set this up?")
