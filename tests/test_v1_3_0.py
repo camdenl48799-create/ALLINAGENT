@@ -450,7 +450,7 @@ def test_cli_inspect_json(workspace: Path):
 
 def test_version_is_1_3_0():
     from allinagent import __version__
-    assert __version__ == "1.3.0"
+    assert __version__ == "1.4.0"
 
 
 # --- Autoloop with fixers ---
