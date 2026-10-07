@@ -1,22 +1,44 @@
-"""ALLINAGENT orchestration: local brain first, optional LLM second, creator system."""
+"""ALLINAGENT v1.2.5 orchestration: intelligence layer over deterministic safety core.
+
+Architecture:
+  LLM/Analyzer -> Agent -> Planner/Loop -> Tool Registry -> Tools/Builders
+  -> Validators -> Memory/Project -> Checkpoints
+"""
 from __future__ import annotations
 from pathlib import Path
+from .autoloop import AutonomousLoop, LoopConfig
+from .checkpoint import CheckpointManager
 from .config import Config
 from .creator import Creator
+from .document_builder import DocumentBuilder
+from .game_builder import GameBuilder
+from .inspector import Inspector
 from .local_brain import LocalBrain
 from .memory import LocalMemory
 from .project import ProjectMemory
 from .tools import WorkspaceTools
+from .understanding import RequestAnalyzer
+from .validators import Validators
+from .website_builder import WebsiteBuilder
 
 
 class Agent:
-    def __init__(self, workspace: Path, *, dry_run=False, allow_write=False, allow_shell=False, use_llm=False, config=None, max_steps=8):
+    def __init__(self, workspace: Path, *, dry_run=False, allow_write=False,
+                 allow_shell=False, use_llm=False, config=None, max_steps=8):
         self.workspace = workspace.resolve()
-        self.tools = WorkspaceTools(self.workspace, dry_run=dry_run, allow_write=allow_write, allow_shell=allow_shell)
+        self.tools = WorkspaceTools(self.workspace, dry_run=dry_run,
+                                    allow_write=allow_write, allow_shell=allow_shell)
         self.local_brain = LocalBrain(self.tools)
         self.creator = Creator(self.tools)
         self.memory = LocalMemory(self.workspace)
         self.project = ProjectMemory(self.workspace)
+        self.inspector = Inspector(self.tools)
+        self.checkpoints = CheckpointManager(self.tools)
+        self.request_analyzer = RequestAnalyzer()
+        self.validators = Validators(self.tools)
+        self.website_builder = WebsiteBuilder(self.tools)
+        self.game_builder = GameBuilder(self.tools)
+        self.document_builder = DocumentBuilder(self.tools)
         self.config = config or Config.from_env()
         self.use_llm = use_llm
         self.max_steps = max(1, max_steps)
@@ -26,10 +48,32 @@ class Agent:
         if not prompt.strip():
             return "ALLINAGENT: give me a task."
 
-        # Check for project commands first
         lower = prompt.strip().lower()
 
-        # Project memory commands
+        # --- Checkpoint commands ---
+        if lower in ("checkpoint", "snapshot"):
+            cp = self.checkpoints.create(description=prompt[:100])
+            return f"Checkpoint created: {cp.id}\n  Files snapshot: {len(cp.files)}\n  Use 'rollback' to undo, 'changes' to see what changed."
+
+        if lower == "rollback":
+            return self.checkpoints.rollback()
+
+        if lower == "changes":
+            return self.checkpoints.changes()
+
+        if lower.startswith("diff "):
+            path = prompt[5:].strip()
+            return self.checkpoints.diff(path)
+
+        if lower == "checkpoints":
+            return self.checkpoints.list_checkpoints()
+
+        # --- Inspect command ---
+        if lower in ("inspect", "inspect project"):
+            inspection = self.inspector.inspect()
+            return inspection.summary()
+
+        # --- Project memory commands ---
         if lower in ("project", "project view", "project status"):
             return self.project.view() if "view" in lower else self.project.status()
         if lower == "project clear":
@@ -56,21 +100,22 @@ class Agent:
                 lines.append(f"- {c.get('description', '')[:100]}")
             return "\n".join(lines)
 
-        # Check for payment/env guidance requests (before creation)
-        if any(w in lower for w in ("sell", "payment", "stripe", "monetize", "pricing", "subscription", "env example", "env.example")):
+        # --- Payment guidance (before creation) ---
+        if any(w in lower for w in ("sell", "payment", "stripe", "monetize",
+                                     "pricing", "subscription", "env example", "env.example")):
             return self._payment_guidance(prompt)
 
-        # Check for creation requests OR follow-up modifications
-        if self.creator.can_handle(prompt):
-            return self.creator.run(prompt, allow_write=self.tools.allow_write)
+        # --- Creation and modification requests ---
+        if self.creator.can_handle(prompt) or self.request_analyzer.is_creation_request(prompt):
+            return self._handle_creation(prompt)
 
-        # Check for follow-up modifications to existing projects
+        # --- Follow-up modifications ---
         if self.project.exists():
-            is_followup, action, params = self.creator.website_builder.is_follow_up(prompt)
-            if is_followup:
-                return self.creator._handle_followup(action, params, prompt)
+            spec = self.request_analyzer.analyze(prompt, self.inspector.inspect())
+            if spec.is_followup():
+                return self.creator._handle_followup(spec.followup_type, dict(actions=spec.actions), prompt)
 
-        # Existing local brain / LLM flow
+        # --- Existing local brain / LLM flow ---
         if self.local_brain.can_handle(prompt) or not self.use_llm or not self.config.has_llm:
             result = self.local_brain.run(prompt)
         else:
@@ -78,15 +123,317 @@ class Agent:
                 from .llm import run_llm
                 result = run_llm(prompt, tools=self.tools, config=self.config, max_steps=self.max_steps)
             except Exception as exc:
-                result = "ALLINAGENT external model failed safely; falling back to the local brain.\nReason: " + str(exc) + "\n\n" + self.local_brain.run(prompt)
+                result = ("ALLINAGENT external model failed safely; falling back to local brain.\n"
+                          f"Reason: {exc}\n\n" + self.local_brain.run(prompt))
+
         if hasattr(self, 'memory_enabled') and self.memory_enabled:
             self.memory.remember(prompt, result)
         return result
 
+    def _handle_creation(self, prompt: str) -> str:
+        """Handle creation and modification requests with full workflow."""
+        # Inspect existing project first
+        inspection = self.inspector.inspect()
+
+        # Analyze the request
+        spec = self.request_analyzer.analyze(prompt, inspection)
+
+        # Create checkpoint before changes (if write enabled)
+        checkpoint_msg = ""
+        if self.tools.allow_write and not self.tools.dry_run:
+            cp = self.checkpoints.create(description=f"Before: {prompt[:80]}")
+            checkpoint_msg = f"Checkpoint created: {cp.id}\n"
+
+        # Route to appropriate builder
+        if spec.kind == "modify" or spec.is_followup():
+            return self._handle_modification(spec, prompt, checkpoint_msg)
+        elif spec.kind == "website":
+            return self._build_website(spec, prompt, inspection, checkpoint_msg)
+        elif spec.kind == "game":
+            return self._build_game(spec, prompt, inspection, checkpoint_msg)
+        elif spec.kind == "document":
+            return self._build_document(spec, prompt, inspection, checkpoint_msg)
+        elif spec.kind == "script":
+            return self._build_script(spec, prompt, inspection, checkpoint_msg)
+        else:
+            return self.creator.run(prompt, allow_write=self.tools.allow_write)
+
+    def _build_website(self, spec, prompt, inspection, checkpoint_msg) -> str:
+        """Build a website with full workflow."""
+        if not self.tools.allow_write:
+            from .website_builder import CreationSpec
+            cs = CreationSpec(kind="website", name=spec.name, theme=spec.theme,
+                             color_scheme=spec.color_scheme, features=spec.features,
+                             tech=spec.tech, target_path=spec.target_path)
+            return self.creator._plan_only_report(cs, prompt)
+
+        lines = ["ALLINAGENT CREATION", ""]
+        lines.append(f"Project: {spec.name}")
+        lines.append(f"Type: website")
+        lines.append(f"Theme: {spec.theme}")
+        lines.append(f"Pages: {', '.join(spec.pages) or 'home'}")
+        if spec.features:
+            lines.append(f"Features: {', '.join(spec.features)}")
+        lines.append("")
+        lines.append("Inspecting project...")
+        lines.append(f"  Found {inspection.total_files} existing files")
+        lines.append("")
+        if checkpoint_msg:
+            lines.append(checkpoint_msg)
+        lines.append("Planning...")
+        lines.append("Creating project structure...")
+
+        # Build the website
+        created = self.website_builder.build_website(spec)
+        lines.append(f"Writing website files ({len(created)} files)...")
+
+        # Add feature pages
+        for page in spec.pages:
+            if page != "home" and f"{spec.name}/{page}.html" not in created:
+                page_html = self.website_builder._generate_feature_page(spec, page)
+                result = self.tools.write_file(f"{spec.name}/{page}.html", page_html)
+                if "WRITE OK" in result:
+                    created.append(f"{spec.name}/{page}.html")
+                    lines.append(f"  + {page}.html")
+
+        # Validate
+        lines.append("Running validation...")
+        validation = self.validators.validate_project(created)
+        if validation.ok:
+            lines.append("  Validation: ALL PASSED")
+        else:
+            for fail in validation.failed:
+                lines.append(f"  ! {fail}")
+
+        # Save project memory
+        self.project.create(name=spec.name, purpose=prompt[:500], kind="website",
+                            technologies=["HTML", "CSS", "JavaScript"])
+        for f in created:
+            self.project.add_file(f)
+        self.project.add_change(f"Created website: {spec.name}", created)
+        self.project.update(state="created", architecture="Static website with HTML/CSS/JS")
+
+        # Report
+        lines.append("Finishing up...")
+        lines.append("")
+        lines.append("=" * 50)
+        lines.append("")
+        lines.append("CREATION COMPLETE")
+        lines.append(f"  Project: {spec.name}")
+        lines.append(f"  Type: website")
+        lines.append(f"  Files created: {len(created)}")
+        for f in created:
+            lines.append(f"    + {f}")
+        if validation.ok:
+            lines.append(f"  Validation: ALL PASSED")
+        lines.append("")
+        lines.append("Next steps:")
+        lines.append(f"  - View files: list files {spec.name}")
+        lines.append(f"  - Read a file: read file {spec.name}/index.html")
+        lines.append(f"  - Make changes: describe what you want")
+        lines.append(f"  - Project info: project view")
+        lines.append(f"  - Checkpoint: checkpoint")
+        lines.append(f"  - Undo: rollback")
+        return "\n".join(lines)
+
+    def _build_game(self, spec, prompt, inspection, checkpoint_msg) -> str:
+        """Build a game with full workflow."""
+        if not self.tools.allow_write:
+            from .website_builder import CreationSpec
+            cs = CreationSpec(kind="game", name=spec.name, theme=spec.theme,
+                             color_scheme=spec.color_scheme, features=spec.features,
+                             tech=spec.tech, target_path=spec.target_path)
+            return self.creator._plan_only_report(cs, prompt)
+
+        lines = ["ALLINAGENT CREATION", ""]
+        lines.append(f"Project: {spec.name}")
+        lines.append(f"Type: game")
+        lines.append(f"Theme: {spec.theme}")
+        if spec.features:
+            lines.append(f"Features: {', '.join(spec.features)}")
+        lines.append("")
+        lines.append("Inspecting project...")
+        lines.append(f"  Found {inspection.total_files} existing files")
+        lines.append("")
+        if checkpoint_msg:
+            lines.append(checkpoint_msg)
+        lines.append("Planning...")
+        lines.append("Creating game files...")
+
+        created = self.game_builder.build_game(spec)
+        lines.append(f"Writing game files ({len(created)} files)...")
+
+        # Validate
+        lines.append("Running validation...")
+        validation = self.validators.validate_project(created)
+        if validation.ok:
+            lines.append("  Validation: ALL PASSED")
+        else:
+            for fail in validation.failed:
+                lines.append(f"  ! {fail}")
+
+        # Save project memory
+        self.project.create(name=spec.name, purpose=prompt[:500], kind="game",
+                            technologies=["HTML5 Canvas", "JavaScript", "CSS"])
+        for f in created:
+            self.project.add_file(f)
+        self.project.add_change(f"Created game: {spec.name}", created)
+        self.project.update(state="created", architecture="Canvas-based browser game")
+
+        lines.append("Finishing up...")
+        lines.append("")
+        lines.append("=" * 50)
+        lines.append("")
+        lines.append("CREATION COMPLETE")
+        lines.append(f"  Project: {spec.name}")
+        lines.append(f"  Type: game")
+        lines.append(f"  Files created: {len(created)}")
+        for f in created:
+            lines.append(f"    + {f}")
+        if validation.ok:
+            lines.append(f"  Validation: ALL PASSED")
+        lines.append("")
+        lines.append("Next steps:")
+        lines.append(f"  - Open {spec.name}/index.html in your browser")
+        lines.append(f"  - View files: list files {spec.name}")
+        lines.append(f"  - Make changes: describe what you want")
+        return "\n".join(lines)
+
+    def _build_document(self, spec, prompt, inspection, checkpoint_msg) -> str:
+        """Build a document with full workflow."""
+        if not self.tools.allow_write:
+            return ("ALLINAGENT: Write permission required to create documents.\n"
+                    "Run with --allow-write to create the file.")
+
+        lines = ["ALLINAGENT CREATION", ""]
+        lines.append(f"Project: {spec.name}")
+        lines.append(f"Type: document")
+        lines.append("")
+        if checkpoint_msg:
+            lines.append(checkpoint_msg)
+        lines.append("Creating document...")
+
+        created = self.document_builder.build_document(spec, prompt)
+        lines.append(f"Document created: {len(created)} file(s)")
+        for f in created:
+            lines.append(f"  + {f}")
+
+        # Validate
+        lines.append("Running validation...")
+        validation = self.validators.validate_project(created)
+        if validation.ok:
+            lines.append("  Validation: ALL PASSED")
+
+        # Save project memory
+        self.project.create(name=spec.name, purpose=prompt[:500], kind="document",
+                            technologies=["Markdown"])
+        for f in created:
+            self.project.add_file(f)
+        self.project.add_change(f"Created document: {spec.name}", created)
+
+        lines.append("")
+        lines.append("CREATION COMPLETE")
+        lines.append(f"  Read the document: read file {created[0] if created else 'document'}")
+        return "\n".join(lines)
+
+    def _build_script(self, spec, prompt, inspection, checkpoint_msg) -> str:
+        """Build a script with full workflow."""
+        if not self.tools.allow_write:
+            from .website_builder import CreationSpec
+            cs = CreationSpec(kind="script", name=spec.name, theme="", color_scheme="",
+                             features=[], tech="vanilla", target_path=spec.target_path)
+            return self.creator._plan_only_report(cs, prompt)
+
+        lines = ["ALLINAGENT CREATION", ""]
+        lines.append(f"Project: {spec.name}")
+        lines.append(f"Type: script")
+        lines.append("")
+        if checkpoint_msg:
+            lines.append(checkpoint_msg)
+        lines.append("Creating script...")
+
+        created = self.creator._build_script(spec)
+        lines.append(f"Script created: {len(created)} file(s)")
+        for f in created:
+            lines.append(f"  + {f}")
+
+        # Validate
+        lines.append("Running validation...")
+        validation = self.validators.validate_project(created)
+        if validation.ok:
+            lines.append("  Validation: ALL PASSED")
+
+        # Save project memory
+        self.project.create(name=spec.name, purpose=prompt[:500], kind="script",
+                            technologies=["Python"])
+        for f in created:
+            self.project.add_file(f)
+        self.project.add_change(f"Created script: {spec.name}", created)
+
+        lines.append("")
+        lines.append("CREATION COMPLETE")
+        return "\n".join(lines)
+
+    def _handle_modification(self, spec, prompt, checkpoint_msg) -> str:
+        """Handle a follow-up modification to an existing project."""
+        project_data = self.project._load()
+        project_name = project_data.get("name", spec.name or "my-project")
+        base = project_name
+
+        lines = ["ALLINAGENT MODIFICATION", ""]
+        lines.append(f"Modifying project: {project_name}")
+        lines.append(f"Change: {spec.followup_type}")
+        lines.append("")
+
+        if not self.tools.allow_write:
+            lines.append("Write permission required. Run with --allow-write.")
+            lines.append(f"Planned change: {spec.followup_type}")
+            return "\n".join(lines)
+
+        if checkpoint_msg:
+            lines.append(checkpoint_msg)
+
+        # Extract params from the prompt
+        import re
+        params = {}
+        if spec.followup_type == "add_page":
+            page_match = re.search(r"\badd\b.*\b(\w+)\s+page\b", prompt, re.IGNORECASE)
+            page_name = page_match.group(1).lower() if page_match else "new-page"
+            params["page"] = page_name
+        elif spec.followup_type == "increase_size":
+            if "button" in prompt.lower():
+                params["target"] = "button"
+            elif "text" in prompt.lower() or "font" in prompt.lower():
+                params["target"] = "text"
+            else:
+                params["target"] = "general"
+        elif spec.followup_type == "change_color":
+            colors = re.findall(r"\b(red|blue|green|purple|orange|yellow|pink|cyan|teal|black|white|navy|gray|grey)\b", prompt.lower())
+            if colors:
+                params["color"] = colors[0]
+
+        lines.append("Applying changes...")
+        modified = self.website_builder.modify_website(base, spec.followup_type, params)
+
+        if modified:
+            lines.append(f"Files modified: {len(modified)}")
+            for f in modified:
+                lines.append(f"  ~ {f}")
+            self.project.add_change(f"{spec.followup_type}: {prompt[:100]}", modified)
+            for f in modified:
+                if ".html" in f or ".css" in f or ".js" in f:
+                    self.project.add_file(f, "Modified file")
+        else:
+            lines.append("No files needed modification.")
+            lines.append("Try being more specific.")
+        lines.append("")
+        lines.append("Modification complete.")
+        lines.append("  Use 'rollback' to undo this change.")
+        return "\n".join(lines)
+
     def _payment_guidance(self, prompt: str) -> str:
         """Provide safe payment/business guidance without handling credentials."""
         lower = prompt.lower()
-        # Handle env example creation
         if "env" in lower and ("example" in lower or "create" in lower or "scaffold" in lower or "generate" in lower):
             if not self.tools.allow_write:
                 return ("ALLINAGENT: Write permission required to create .env.example.\n"

@@ -7,7 +7,10 @@ from __future__ import annotations
 
 import ast
 import json
-import tomllib
+try:
+    import tomllib
+except ModuleNotFoundError:
+    import tomli as tomllib  # type: ignore[no-redef]
 from pathlib import Path
 
 from .tools import WorkspaceTools

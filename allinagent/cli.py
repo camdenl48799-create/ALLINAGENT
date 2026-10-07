@@ -241,7 +241,11 @@ def build_parser():
         description="ALLINAGENT — an independent, local-first AI coding agent.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=(
-            "Inline REPL commands: help, clear, memory, history, status, explain <prompt>, exit\n"
+            "Inline REPL commands: help, clear, memory, history, status, explain, exit\n"
+            "Creation: make me a website, make me a game, create a script\n"
+            "Project: project view, project status, project clear\n"
+            "Checkpoint: checkpoint, rollback, changes, diff <path>\n"
+            "Inspection: inspect\n"
             "Run 'allinagent init' to scaffold a workspace config.\n"
             "Run 'allinagent doctor' to run diagnostics."
         ),
@@ -280,6 +284,11 @@ REPL commands:
   project files        List tracked files
   project changes      Recent changes
   project clear         Delete project memory
+  inspect              Inspect the project structure
+  checkpoint           Create a checkpoint snapshot
+  rollback             Rollback to last checkpoint
+  changes              Show changes since last checkpoint
+  diff <path>          Show file diff against checkpoint
   history              Show recent conversation history
   status               Show workspace and capability status
   explain <prompt>     Show how the local brain classifies a prompt
@@ -289,6 +298,7 @@ Creation commands:
   make me a website    Create a website (requires --allow-write)
   make me a game       Create a game (requires --allow-write)
   create a script      Create a script (requires --allow-write)
+  create a document    Create a document (requires --allow-write)
 
 Local brain commands:
   who are you          Identity
@@ -461,6 +471,16 @@ def main():
     if args.prompt and args.prompt[0].lower() == "doctor":
         workspace = Path(args.workspace).resolve()
         return doctor(workspace, colors)
+
+    if args.prompt and args.prompt[0].lower() == "inspect":
+        workspace = Path(args.workspace).resolve()
+        from .inspector import Inspector
+        from .tools import WorkspaceTools
+        tools = WorkspaceTools(workspace)
+        inspector = Inspector(tools)
+        inspection = inspector.inspect()
+        print(inspection.summary())
+        return 0
 
     workspace = Path(args.workspace).resolve()
     config = Config.from_env(model=args.model, base_url=args.base_url)

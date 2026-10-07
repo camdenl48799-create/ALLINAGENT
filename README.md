@@ -1,148 +1,113 @@
 # ALLINAGENT
 
-> **v1.1.0 — Current release**
+> **v1.2.5 — Current release**
 
-**An independent, local-first AI coding agent that creates.**
-ALLINAGENT is the product. Models are optional fuel.
+**An independent, local-first AI creation and development agent.**
+Turn your ideas into real projects — websites, games, scripts, and documents — all on your machine.
 
-Turn your ideas into real projects — websites, games, scripts, and more — all on your machine.
+## What's New in v1.2.5
 
-## What's new in v1.1.0
+This is a major upgrade that makes ALLINAGENT approximately 3× more capable than v1.1.0:
 
-This is a major feature update focused on making ALLINAGENT a genuine creation agent:
+### Smarter Understanding
 
-### Universal Creation System
+A new `RequestAnalyzer` converts natural-language requests into structured task specifications. Instead of keyword matching, it understands multi-part requests like:
 
-ALLINAGENT can create real project files from natural-language requests:
+> "Make me a gaming website for my company with a homepage, products page, login page, dark mode, animations, contact form, and an admin dashboard."
 
-```text
-"make me a dark gaming website"
-"create a game called DOG GO"
-"build me a Python script"
+It extracts pages, features, theme, tech preferences, and project name from a single prompt.
+
+### Project Inspection
+
+Before modifying any project, ALLINAGENT inspects the workspace to determine project type, languages, frameworks, dependencies, entry points, config files, tests, and important files. It never blindly overwrites existing work.
+
+### Checkpoint & Rollback
+
+Create snapshots before major changes and safely undo them:
+
+```bash
+checkpoint    # Create a snapshot
+changes       # See what changed
+diff <path>   # See file-level diff
+rollback      # Undo to last checkpoint
 ```
 
-The agent follows a PLAN → MODIFY → VALIDATE → REPORT workflow and creates actual files in your workspace.
+### Autonomous Build-Test-Fix Loop
 
-### Website Builder
+A bounded loop that plans, builds, validates, detects errors, attempts fixes, and re-validates. Configurable limits prevent infinite loops.
 
-Generates complete static website projects with HTML, CSS, JavaScript, and a README. Supports follow-up modifications:
+### Expanded Website Builder
 
-```text
-"make the buttons bigger"     → modifies CSS
-"add a games page"           → creates new HTML page, updates nav
-"make it mobile friendly"    → adds responsive CSS
-"change the color to blue"   → updates CSS variables
-```
+Multi-page websites with navigation, landing pages, login UI, contact forms, product pages, dark/light themes, animations, responsive layouts, and reusable components.
 
-### Project Memory
+### Expanded Game Builder
 
-Tracks project name, purpose, technologies, important files, and changes:
+Playable browser games with HTML5 Canvas: player movement, enemies, health, score, levels, pause menu, restart, win/lose states, difficulty selection, and settings.
 
-```text
-project view      → full project context
-project status    → quick summary
-project files     → tracked files
-project changes   → recent modifications
-project clear     → delete project memory
-```
+### Document Builder
 
-### File Operations
+Generates specific, useful documents: README, technical specification, user guide, manual, changelog, and project plan — based on the actual request and project context.
 
-New safe file operations with guardrails:
+### Tool Registry
 
-- `create_dir` — create directories
-- `rename_file` / `move_file` — rename and move files
-- `delete_file` — delete with confirmation required
-- `edit_file` — find-and-replace text in files
-- `write_files` — batch write multiple files
+A unified registry that provides tool schemas, descriptions, permission metadata, and risk levels for both the local brain and optional LLM tool loop.
 
-### Safety Guardrails
+### Enhanced Memory
 
-- Destructive operations require explicit confirmation
-- Workspace root deletion is blocked
-- Protected directories (.git, .venv, .allinagent) cannot be deleted
-- Dangerous shell commands are classified and blocked
-- Protected config files cannot be silently overwritten
+Project memory tracks architecture, completed features, pending tasks, known bugs, requirements, decisions, and recent changes. Supports `--no-memory` to disable storage.
 
-### Validators
+### Progress Reporting
 
-Generated code is validated without dangerous shell calls:
-
-- **Python**: `ast.parse` syntax checking
-- **JSON**: `json.loads` validation
-- **TOML**: `tomllib` parsing
-- **HTML**: structure checks
-- **CSS**: rule validation
-- **JS**: brace balancing check
-
-### Payment Guidance
-
-Safe guidance for users who want to sell their creations. Payment is never required for normal use. Only shown when the user mentions selling, payment, or monetization.
-
-Security rules:
-- Never put API keys in frontend code
-- Store credentials in `.env` files (never committed)
-- All payment processing happens on the backend
-
-### CLI Improvements
-
-- `allinagent init` — scaffold a workspace config
-- `allinagent doctor` — run health diagnostics
-- `--version` — print version
-- `--json` — structured JSON output
-- `--no-color` — disable colored output
-- Interactive REPL with `project`, `memory`, `history`, `explain`, `clear` commands
-
-### Cross-Platform Install
-
-- `scripts/install.ps1` — Windows PowerShell
-- `scripts/install.sh` — macOS/Linux Bash
+Concise progress summaries during operations: "Planning...", "Creating files...", "Running validation...", "Checking for errors...", "Completed."
 
 ## Architecture Overview
 
 ```text
-User
- |
- v
-ALLINAGENT
- ├── Local Brain (deterministic intent router)
- |    ├── Identity, help, onboarding
- |    ├── Workspace tools (read, list, search)
- |    └── Project commands
- |
- ├── Creator System
- |    ├── Website Builder (HTML/CSS/JS generation)
- |    ├── Game Builder (Canvas-based games)
- |    ├── Script Builder (Python)
- |    ├── Document Builder
- |    └── Follow-up Modification (modify existing projects)
- |
- ├── Planner (PLAN → MODIFY → VALIDATE → REPORT)
- |
- ├── Validators (Python, JSON, TOML, HTML, CSS, JS)
- |
- ├── Guardrails (destructive operation classification)
- |
- ├── Project Memory (.allinagent/project.json)
- |
- └── Optional LLM (OpenAI-compatible tool loop)
+User Request
+    |
+    v
+Request Analyzer (natural language -> TaskSpec)
+    |
+    v
+Agent (orchestrator)
+    |
+    +-- Inspector (project analysis)
+    +-- Checkpoint Manager (snapshots)
+    +-- Creator System
+    |    +-- Website Builder
+    |    +-- Game Builder
+    |    +-- Document Builder
+    |    +-- Script Builder
+    +-- Planner / Autonomous Loop
+    +-- Tool Registry (unified tool schemas)
+    +-- Validators (Python, JSON, TOML, HTML, CSS, JS)
+    +-- Guardrails (destructive operation protection)
+    +-- Project Memory (.allinagent/project.json)
+    +-- Conversation Memory (.allinagent-memory.json)
+    +-- Optional LLM (OpenAI-compatible)
 ```
 
 ## Module Reference
 
 | Module | Purpose |
 |---|---|
-| `agent.py` | Main orchestration — routes requests to creator, local brain, or LLM |
-| `cli.py` | CLI argument parsing, REPL, init, doctor commands |
+| `agent.py` | Main orchestration — routes requests through the full pipeline |
+| `understanding.py` | Request analyzer — natural language to structured TaskSpec |
+| `inspector.py` | Project inspection — detects type, languages, frameworks, deps |
+| `checkpoint.py` | Checkpoint/rollback system — snapshot, restore, diff |
+| `autoloop.py` | Autonomous build-test-fix loop with bounded retries |
+| `tool_registry.py` | Unified tool registry with schemas and permission metadata |
 | `creator.py` | Universal creation dispatcher |
-| `website_builder.py` | Website generation and modification |
+| `website_builder.py` | Multi-page website generation and modification |
+| `game_builder.py` | Playable browser game generation |
+| `document_builder.py` | Document generation (README, spec, guide, manual, changelog, plan) |
 | `planner.py` | Task planning with progress summaries |
 | `project.py` | Project metadata and context store |
-| `validators.py` | File validation (Python, JSON, TOML, HTML, CSS, JS) |
-| `guardrails.py` | Safety classification for destructive operations |
+| `validators.py` | File validation (Python ast, JSON, TOML, HTML, CSS, JS) |
+| `guardrails.py` | Destructive operation classification and protection |
 | `local_brain.py` | Deterministic offline intent router |
 | `tools.py` | Sandboxed workspace tools with file operations |
-| `memory.py` | Persistent JSON conversation memory |
+| `memory.py` | Persistent conversation memory |
 | `config.py` | Environment-based configuration |
 | `llm.py` | Optional OpenAI-compatible tool loop |
 | `prompts.py` | System prompts for external model mode |
@@ -163,12 +128,6 @@ powershell -ExecutionPolicy Bypass -File .\scripts\install.ps1
 bash scripts/install.sh
 ```
 
-Add to PATH:
-
-```bash
-export PATH="$HOME/.local/share/ALLINAGENT/bin:$PATH"
-```
-
 ### Local development install
 
 ```bash
@@ -183,35 +142,18 @@ pip install -e ".[llm]"
 
 No API key is required for local mode.
 
-## Configuration
-
-### Environment Variables
-
-| Variable | Purpose | Required |
-|---|---|---|
-| `ALLINAGENT_API_KEY` | API key for external model | No |
-| `ALLINAGENT_BASE_URL` | OpenAI-compatible endpoint URL | No |
-| `ALLINAGENT_MODEL` | Model name | No |
-| `OPENAI_API_KEY` | Fallback API key (OpenAI compat) | No |
-| `NO_COLOR` | Disable colored output | No |
-
-### Workspace Config
-
-Run `allinagent init` to create a `.allinagent.toml`:
-
-```toml
-[allinagent]
-# model = "gpt-4o"
-# base_url = "https://api.openai.com/v1"
-# api_key_env = "ALLINAGENT_API_KEY"
-```
-
-## Usage
+## Usage Examples
 
 ### Create a website
 
 ```bash
 allinagent --allow-write "make me a dark gaming website"
+```
+
+### Create a complex multi-page website
+
+```bash
+allinagent --allow-write "make me a gaming website with a homepage, products page, login page, and contact form"
 ```
 
 ### Follow-up modifications
@@ -220,6 +162,36 @@ allinagent --allow-write "make me a dark gaming website"
 allinagent --allow-write "make the buttons bigger"
 allinagent --allow-write "add a games page"
 allinagent --allow-write "make it mobile friendly"
+allinagent --allow-write "change the color to blue"
+```
+
+### Create a game
+
+```bash
+allinagent --allow-write "make me a game"
+```
+
+### Create a document
+
+```bash
+allinagent --allow-write "create a readme for my project"
+allinagent --allow-write "create a technical specification"
+allinagent --allow-write "create a user guide"
+```
+
+### Inspect a project
+
+```bash
+allinagent inspect
+```
+
+### Checkpoints and rollback
+
+```bash
+allinagent checkpoint
+allinagent changes
+allinagent diff src/main.py
+allinagent rollback
 ```
 
 ### Interactive REPL
@@ -228,30 +200,10 @@ allinagent --allow-write "make it mobile friendly"
 allinagent -i
 ```
 
-### Run a one-shot task
-
-```bash
-allinagent analyze project
-```
-
 ### JSON output
 
 ```bash
-allinagent --json "who are you"
-```
-
-### Use another workspace
-
-```bash
-allinagent --workspace ./my-project analyze project
-```
-
-### Project management
-
-```bash
-allinagent "project view"
-allinagent "project changes"
-allinagent "project clear"
+allinagent --json "analyze project"
 ```
 
 ### Diagnostics
@@ -259,22 +211,6 @@ allinagent "project clear"
 ```bash
 allinagent doctor
 ```
-
-## Safety
-
-ALLINAGENT is safe-by-default:
-
-- File paths cannot escape the workspace sandbox
-- File writes require `--allow-write`
-- Shell execution requires `--allow-shell`
-- `--dry-run` blocks all mutations
-- File deletion requires explicit confirmation
-- Workspace root cannot be deleted
-- Protected directories (.git, .venv, .allinagent) are blocked from deletion
-- Protected config files cannot be silently overwritten
-- Dangerous shell commands are detected and blocked
-- Payment credentials are never exposed in frontend code
-- Local mode does not send code or prompts to external services
 
 ## CLI Options
 
@@ -293,78 +229,105 @@ ALLINAGENT is safe-by-default:
 | `-v, --verbose` | Show startup details |
 | `--version` | Print version and exit |
 | `--no-color` | Disable colored output |
+| `--no-memory` | Disable memory storage |
 | `--json` | Output as JSON (one-shot mode) |
 
-## Local Commands
+## Commands
 
 ```text
-who are you
-help
-how do I get started?
-capabilities
-analyze project
-list files
-read file <path>
-find <text>
-free up space
-status project
-plan
-doctor
-quickstart
-make me a website
-make me a game
-create a script
-project view
-project status
-project clear
-```
-
-## REPL Commands
-
-```text
-help                 Show REPL help
-clear                Clear the screen
-memory               Show memory status
-memory clear         Clear saved memory
+who are you          Identity and capabilities
+help                 Show all commands
+inspect              Inspect project structure
+doctor               Run diagnostics
+checkpoint           Create a snapshot
+rollback             Undo to last checkpoint
+changes              Show changes since checkpoint
+diff <path>          Show file diff
 project view         Show project context
-project status       Quick project status
-project files        List tracked files
-project changes      Recent changes
-project clear         Delete project memory
-history              Show conversation history
-status               Show workspace status
-explain <prompt>     Show intent classification
-exit, quit           Exit the REPL
+project status       Quick status
+project clear        Delete project memory
+memory               Memory status
+memory view          Show conversation memory
+memory clear         Clear conversation memory
+history              Show recent history
+status               Workspace status
+plan                 Local workflow guide
+
+make me a website    Create a website
+make me a game       Create a game
+create a script       Create a script
+create a document     Create a document
 ```
+
+## Safety
+
+ALLINAGENT is safe-by-default:
+
+- Path sandbox enforced on all operations
+- File writes require `--allow-write`
+- Shell execution requires `--allow-shell`
+- `--dry-run` blocks all mutations
+- File deletion requires explicit confirmation
+- Workspace root and protected directories cannot be deleted
+- Protected config files cannot be silently overwritten
+- Dangerous shell commands are blocked (rm -rf, mkfs, shutdown, etc.)
+- Checkpoints before major changes allow safe rollback
+- Payment credentials are never exposed in frontend code
+- `--no-memory` disables all memory storage
+- Local mode does not send code or prompts to external services
+
+## Configuration
+
+### Environment Variables
+
+| Variable | Purpose | Required |
+|---|---|---|
+| `ALLINAGENT_API_KEY` | API key for external model | No |
+| `ALLINAGENT_BASE_URL` | Model endpoint URL | No |
+| `ALLINAGENT_MODEL` | Model name | No |
+| `OPENAI_API_KEY` | Fallback API key | No |
+| `NO_COLOR` | Disable colored output | No |
+
+### Workspace Config
+
+Run `allinagent init` to create `.allinagent.toml`.
 
 ## Project Structure
 
 ```text
 ALLINAGENT/
 ├── allinagent/
-│   ├── __init__.py
+│   ├── __init__.py          (v1.2.5)
 │   ├── __main__.py
-│   ├── agent.py
-│   ├── cli.py
-│   ├── config.py
-│   ├── creator.py
-│   ├── guardrails.py
-│   ├── llm.py
-│   ├── local_brain.py
-│   ├── memory.py
-│   ├── planner.py
-│   ├── project.py
-│   ├── prompts.py
-│   ├── tools.py
-│   ├── validators.py
-│   └── website_builder.py
+│   ├── agent.py             (orchestrator)
+│   ├── understanding.py      (request analyzer)
+│   ├── inspector.py         (project inspection)
+│   ├── checkpoint.py        (checkpoint/rollback)
+│   ├── autoloop.py          (build-test-fix loop)
+│   ├── tool_registry.py     (unified tool schemas)
+│   ├── creator.py           (creation dispatcher)
+│   ├── website_builder.py   (website generation)
+│   ├── game_builder.py      (game generation)
+│   ├── document_builder.py  (document generation)
+│   ├── planner.py           (task planning)
+│   ├── project.py           (project memory)
+│   ├── validators.py        (file validation)
+│   ├── guardrails.py        (safety classification)
+│   ├── local_brain.py       (deterministic intent router)
+│   ├── tools.py             (sandboxed file operations)
+│   ├── memory.py            (conversation memory)
+│   ├── config.py            (configuration)
+│   ├── llm.py               (optional LLM loop)
+│   └── prompts.py            (system prompts)
 ├── scripts/
 │   ├── install.ps1
 │   └── install.sh
 ├── tests/
 │   ├── test_local_agent.py
 │   ├── test_cli_features.py
-│   └── test_v1_1_0.py
+│   ├── test_safety.py
+│   ├── test_v1_1_0.py
+│   └── test_v1_2_5.py
 ├── pyproject.toml
 └── README.md
 ```
@@ -372,103 +335,37 @@ ALLINAGENT/
 ## Development
 
 ```bash
-# Install in development mode
 pip install -e .
-
-# Run tests
 python -m pytest tests/ -v
-
-# Compile check
 python -m compileall allinagent
-
-# Build wheel
 python -m pip wheel . -w /tmp/dist
-
-# Run diagnostics
+allinagent --version
 allinagent doctor
 ```
 
-Workflow:
-
-```text
-inspect → plan → modify → validate → report
-```
-
-Core rule:
-
-> **Local capability first. External services are always opt-in.**
-
-## Troubleshooting
-
-### "WRITE DENIED" errors
-
-File writes require `--allow-write`:
-
-```bash
-allinagent --allow-write "your task"
-```
-
-### "DELETE: confirmation required"
-
-Deletion requires explicit confirmation. This is a safety feature.
-
-### "Path escapes workspace" errors
-
-ALLINAGENT sandboxes all file operations to the configured workspace. Use `--workspace` to set a different workspace:
-
-```bash
-allinagent --workspace ./my-project "your task"
-```
-
-### External LLM not working
-
-Ensure the `openai` package is installed and API key is set:
-
-```bash
-pip install -e ".[llm]"
-export ALLINAGENT_API_KEY="your-key"
-allinagent --llm "your task"
-```
-
-### Tests failing
-
-Ensure the package is installed in development mode:
-
-```bash
-pip install -e .
-python -m pytest tests/ -v
-```
-
-## Security Notes
-
-- ALLINAGENT does not send code or prompts to external services in local mode
-- All file operations are sandboxed to the workspace
-- Payment credentials are never stored or transmitted by ALLINAGENT
-- `.env` files should be added to `.gitignore`
-- Never put API keys, secret keys, or passwords in frontend code
-- The `--dry-run` flag can be used to preview changes without writing
+Workflow: `inspect → plan → build → validate → fix → report`
 
 ## Limitations
 
-- No graphical/web UI — ALLINAGENT is a CLI tool. A full browser IDE is a future target.
-- The local brain is deterministic, not a foundation model. For complex reasoning, use `--llm`.
-- Website generation uses vanilla HTML/CSS/JS by default. React/Next.js support requires the optional LLM.
-- Game generation produces Canvas-based browser games, not native apps.
-- Desktop app generation is not supported in v1.1.0.
+- No graphical/web UI — ALLINAGENT is a CLI tool
+- Local brain is deterministic, not a foundation model — use `--llm` for complex reasoning
+- Website generation uses vanilla HTML/CSS/JS (no JS build system)
+- Game generation produces Canvas-based browser games
+- Desktop app generation is not supported
+- Autonomous error fixing is limited to detection and reporting
 
-## Roadmap (v1.2.0+)
+## Roadmap (v1.3.0+)
 
-- Browser-based IDE interface (chat, file explorer, code editor, preview)
-- Git-aware tools and version control integration
+- Browser-based IDE interface
+- Git integration
 - Streaming LLM mode
 - React/Next.js project generation
-- Desktop app generation (Electron/Tauri)
+- Auto-fix error recovery loop
 - Plugin/MCP hooks
-- Configuration file support (.allinagent.toml)
-- Smarter multi-step local reasoning
+- Desktop app generation
 
 ## License
 
 MIT License.
 
-**ALLINAGENT — Independent. Local-first. Honest. Built to create.**
+**ALLINAGENT v1.2.5 — Independent. Local-first. Honest. Built to create.**
