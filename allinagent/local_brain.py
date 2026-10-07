@@ -14,7 +14,7 @@ from typing import Callable
 from .tools import WorkspaceTools
 
 IDENTITY = (
-    "I’m ALLINAGENT — an independent, local-first AI coding agent. "
+    "I'm ALLINAGENT — an independent, local-first AI coding agent. "
     "My local brain and tools run on your machine. External models are optional fuel."
 )
 
@@ -40,8 +40,8 @@ class LocalBrain:
     def __init__(self, tools: WorkspaceTools) -> None:
         self.tools = tools
         self._patterns: list[tuple[str, tuple[str, ...], int]] = [
-            ("identity", (r"\bwho are you\b", r"\bwhat are you\b"), 100),
-            ("help", (r"^help$", r"\bwhat can you do\b", r"\bcommands\b"), 95),
+            ("identity", (r"\bwho are you\b", r"\bwhat are you\b", r"\bwhat is allinagent\b"), 100),
+            ("help", (r"^help$", r"\bwhat can you do\b", r"\bcommands\b", r"^what commands\b"), 95),
             ("onboarding", (
                 r"^what do i do\??$",
                 r"^how do i (get )?started\??$",
@@ -50,6 +50,7 @@ class LocalBrain:
                 r"^how does this work\??$",
                 r"\bgetting started\b",
                 r"\bsetup (help|guide)\b",
+                r"\bquickstart\b",
             ), 98),
             ("capabilities", (r"\bcapabilit(?:y|ies)\b", r"\bpermissions\b", r"\bsafety\b"), 90),
             ("summary", (
@@ -57,28 +58,34 @@ class LocalBrain:
                 r"\bproject (summary|structure)\b",
                 r"\bworkspace (summary|structure)\b",
             ), 90),
-            ("storage", (r"\bfree (up )?space\b", r"\bstorage\b", r"\blargest files?\b"), 90),
+            ("storage", (r"\bfree (up )?space\b", r"\bstorage\b", r"\blargest files?\b", r"\bdisk usage\b"), 90),
             ("list", (
                 r"^list( files| directory| folder)?\b",
                 r"\bshow (me )?(files|directory|folder)\b",
+                r"^ls\b",
+                r"^dir\b",
             ), 85),
             ("read", (
                 r"^read\b",
+                r"^cat\b",
                 r"\bshow (me )?the file\b",
                 r"\bopen (the )?file\b",
             ), 85),
             ("search", (
                 r"^(find|search)\b",
                 r"\bsearch (the )?workspace\b",
+                r"^grep\b",
             ), 85),
             ("status", (
                 r"\bstatus\b.*\b(project|workspace|repo)\b",
                 r"\bworkspace status\b",
+                r"^doctor\b",
             ), 80),
             ("plan", (
                 r"\bplan\b",
                 r"\bwhat should i do\b",
                 r"\bnext steps\b",
+                r"\bworkflow\b",
             ), 75),
         ]
 
@@ -105,7 +112,7 @@ class LocalBrain:
     def _extract_args(self, name: str, text: str) -> tuple[str, ...]:
         if name == "read":
             match = re.search(
-                r"""(?:read|open|show(?: me)?(?: the)?)\s+(?:file\s+)?['"]?(.+?)['"]?$""",
+                r"""(?:read|open|show(?: me)?(?: the)?|cat)\s+(?:file\s+)?['\"]?(.+?)['\"]?$""",
                 text,
                 re.IGNORECASE,
             )
@@ -113,7 +120,7 @@ class LocalBrain:
 
         if name == "list":
             match = re.search(
-                r"^list(?: files| directory| folder)?\s*(.*)$",
+                r"^(?:list(?: files| directory| folder)?|ls|dir)\s*(.*)$",
                 text,
                 re.IGNORECASE,
             )
@@ -122,7 +129,7 @@ class LocalBrain:
 
         if name == "search":
             match = re.search(
-                r"""^(?:find|search)(?: for)?\s+['"]?(.+?)['"]?$""",
+                r"""^(?:find|search|grep)(?: for)?\s+['\"]?(.+?)['\"]?$""",
                 text,
                 re.IGNORECASE,
             )
@@ -156,7 +163,7 @@ class LocalBrain:
         return """ALLINAGENT LOCAL MODE
 
 Identity
-  who are you              Explain ALLINAGENT’s identity.
+  who are you              Explain ALLINAGENT's identity.
 
 Workspace
   analyze project          Summarize files and file types.
@@ -177,31 +184,67 @@ Safety
   --dry-run disables mutations even when permissions are supplied.
   Paths are sandboxed to the configured workspace.
 
-For broader reasoning, explicitly opt into an OpenAI-compatible model with --llm.
-"""
+CLI commands
+  allinagent init           Scaffold a workspace config (.allinagent.toml).
+  allinagent doctor         Run diagnostics and health checks.
+  allinagent --version       Show the installed version.
+  allinagent --json <task>   Output results as JSON.
+  allinagent --no-color      Disable colored output.
+
+For broader reasoning, explicitly opt into an OpenAI-compatible model with --llm."""
 
     def _onboarding(self) -> str:
-        return """ALLINAGENT GETTING STARTED
+        from .memory import LocalMemory
 
-1. Open a project folder as your workspace.
-2. Start ALLINAGENT with: allinagent
-3. Ask it to inspect your project:
-     analyze project
-4. Read files:
-     read file README.md
-5. Search the project:
-     find TODO
-6. Ask for a safe plan:
-     plan <task>
+        file_count = sum(1 for _ in self.tools._iter_files())
+        mem = LocalMemory(self.tools.workspace)
+        mem_count = len(mem._load())
 
-When you are ready for ALLINAGENT to change files, use:
+        intro = """ALLINAGENT GETTING STARTED
+
+Welcome to ALLINAGENT — an independent, local-first AI coding agent.
+No API key is required. Your code and prompts stay on your machine."""
+
+        workspace_info = f"""
+Workspace
+  {self.tools.workspace}
+  Files: {file_count}
+  Memory entries: {mem_count}"""
+
+        steps = """
+Quick start
+  1. Inspect your project:
+       analyze project
+  2. Read a file:
+       read file README.md
+  3. Search for text:
+       find TODO
+  4. Get a workflow plan:
+       plan
+  5. Check system health:
+       doctor
+
+When you are ready for ALLINAGENT to change files, start with:
   --allow-write
 
 Shell commands are separately protected and require:
   --allow-shell
 
+Scaffold a new workspace config with:
+  allinagent init
+
 You do not need an API key for the local brain. Local mode keeps your
 project and prompts on your machine."""
+
+        # Detect empty workspace and offer guidance
+        if file_count == 0:
+            empty_note = """
+NOTE: This workspace appears to be empty.
+  - Run 'allinagent init' to create a config file.
+  - Or navigate to a project directory and start ALLINAGENT there."""
+            return intro + workspace_info + empty_note + steps
+
+        return intro + workspace_info + steps
 
     def _capabilities(self) -> str:
         return self.tools.capability_report()
@@ -254,7 +297,8 @@ Local mode never sends code or prompts to a network service."""
         return (
             "ALLINAGENT local brain does not have a deterministic handler for that "
             "request yet. No request was sent off-machine.\n\n"
-            "Try help, or explicitly use --llm for optional external reasoning."
+            "Try 'help' for available commands, or explicitly use --llm for "
+            "optional external reasoning."
         )
 
     def _limit_output(self, value: str) -> str:
@@ -321,6 +365,8 @@ Local mode never sends code or prompts to a network service."""
             "free up space",
             "status project",
             "plan",
+            "doctor",
+            "quickstart",
         )
 
 

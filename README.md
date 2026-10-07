@@ -1,45 +1,48 @@
 # ALLINAGENT
 
-> **v1.0.0 — Current release**
+> **v1.1.0 — Current release**
 
 **An independent, local-first AI coding agent.**  
 ALLINAGENT is the product. Models are optional fuel.
 
 Your code stays on your machine in local mode unless you explicitly choose an external model.
 
-## ⚡ Features
+## Features
 
-- 🧠 Offline local brain — no API key required
-- 🛠️ Sandboxed workspace tools
-- 💻 CLI + interactive REPL
-- 🔒 Writes and shell commands are opt-in
-- 🧪 Dry-run mode
-- 🔎 Project summaries, file reading, search, storage reports
-- 🤖 Optional OpenAI-compatible reasoning
-- 🧠 Persistent local project/conversation memory
-- 📜 MIT licensed
+- Offline local brain — no API key required
+- Sandboxed workspace tools
+- CLI + interactive REPL with inline commands
+- Writes and shell commands are opt-in
+- Dry-run mode
+- Project summaries, file reading, search, storage reports
+- Optional OpenAI-compatible reasoning
+- Persistent local project/conversation memory
+- Workspace init scaffolding and diagnostics
+- Cross-platform install scripts (Windows + macOS/Linux)
+- JSON output mode for scripting
+- MIT licensed
 
-## 🏗️ How it works
+## How it works
 
 ```text
 You
- │
- ▼
+ |
+ v
 ALLINAGENT
- ├── Local Brain ──► Workspace Tools
- │                    └── Offline
- │
+ ├── Local Brain --> Workspace Tools
+ |                    └── Offline
+ |
  └── Optional LLM
        └── External reasoning (opt-in)
 ```
 
 The local brain is a deterministic offline intent engine. It is not presented as a foundation model.
 
-## 🚀 Installation
+## Installation
 
 Requires **Python 3.10+**.
 
-### Windows
+### Windows (PowerShell)
 
 From a cloned/downloaded repository:
 
@@ -59,6 +62,28 @@ Then add its `bin` folder to your PATH and run:
 allinagent activate
 ```
 
+### macOS / Linux (Bash)
+
+From a cloned/downloaded repository:
+
+```bash
+bash scripts/install.sh
+```
+
+The installer creates an isolated venv under:
+
+```text
+~/.local/share/ALLINAGENT
+```
+
+Add the `bin` folder to your PATH:
+
+```bash
+export PATH="$HOME/.local/share/ALLINAGENT/bin:$PATH"
+```
+
+Add that line to your `~/.bashrc` or `~/.zshrc` to make it permanent.
+
 ### Local development install
 
 ```bash
@@ -73,7 +98,7 @@ pip install -e ".[llm]"
 
 No API key is required for local mode.
 
-## 🆕 New here?
+## New here?
 
 Start ALLINAGENT and type:
 
@@ -81,9 +106,21 @@ Start ALLINAGENT and type:
 how do I get started?
 ```
 
-It will walk you through the basics.
+It will walk you through the basics, detect your workspace state, and suggest next steps.
 
-## 🎮 Basic usage
+Or scaffold a workspace config:
+
+```bash
+allinagent init
+```
+
+And run diagnostics:
+
+```bash
+allinagent doctor
+```
+
+## Basic usage
 
 Start in the current folder:
 
@@ -115,7 +152,40 @@ Force offline mode:
 allinagent --local "analyze project"
 ```
 
-## 🛡️ Safety
+JSON output (for scripting):
+
+```bash
+allinagent --json "analyze project"
+```
+
+Disable color:
+
+```bash
+allinagent --no-color "analyze project"
+```
+
+Check version:
+
+```bash
+allinagent --version
+```
+
+## REPL inline commands
+
+When in interactive mode (`allinagent -i` or just `allinagent`), these commands are available:
+
+```text
+help                 Show REPL help
+clear                Clear the screen
+memory               Show memory status
+memory clear         Clear all saved memory
+history              Show recent conversation history
+status               Show workspace and capability status
+explain <prompt>     Show how the local brain classifies a prompt
+exit, quit           Exit the REPL
+```
+
+## Safety
 
 ALLINAGENT is safe-by-default:
 
@@ -134,7 +204,7 @@ allinagent --allow-shell "your task"
 allinagent --dry-run "your task"
 ```
 
-## 🤖 Optional external reasoning
+## Optional external reasoning
 
 Configure an OpenAI-compatible endpoint with:
 
@@ -154,7 +224,7 @@ allinagent --llm --model your-model "inspect this project"
 
 If external reasoning fails, ALLINAGENT falls back to its local brain.
 
-## 📋 Local commands
+## Local commands
 
 ```text
 who are you
@@ -170,9 +240,11 @@ find <text>
 free up space
 status project
 plan
+doctor
+quickstart
 ```
 
-## ⚙️ CLI options
+## CLI options
 
 | Option | Purpose |
 |---|---|
@@ -187,27 +259,50 @@ plan
 | `--base-url URL` | Select endpoint |
 | `--max-steps N` | Limit LLM tool steps |
 | `-v, --verbose` | Show startup details |
+| `--version` | Print version and exit |
+| `--no-color` | Disable colored output |
+| `--json` | Output as JSON (one-shot mode) |
 
-## 📁 Project structure
+## Project structure
 
 ```text
 ALLINAGENT/
 ├── allinagent/
+│   ├── __init__.py
+│   ├── __main__.py
 │   ├── agent.py
 │   ├── cli.py
 │   ├── config.py
 │   ├── llm.py
 │   ├── local_brain.py
+│   ├── memory.py
 │   ├── prompts.py
 │   └── tools.py
 ├── scripts/
-│   └── install.ps1
+│   ├── install.ps1
+│   └── install.sh
 ├── tests/
+│   └── test_local_agent.py
 ├── pyproject.toml
 └── README.md
 ```
 
-## 🏁 v1.0.0\n\nThe 1.0.0 milestone adds persistent local memory. Conversation turns are stored in a plain `.allinagent-memory.json` file inside the workspace. ALLINAGENT does not sync this memory itself.\n\nALLINAGENT can use its workspace tools plus optional reasoning to inspect, create, edit, test, and verify projects.\n\n## 🧭 Roadmap
+## v1.1.0
+
+This release improves the CLI and onboarding experience:
+
+- **Workspace-aware onboarding** — the getting started flow now detects your workspace state (file count, memory entries) and adjusts guidance accordingly, including a note for empty workspaces.
+- **`init` command** — `allinagent init` scaffolds a `.allinagent.toml` config file in the workspace.
+- **`doctor` command** — `allinagent doctor` runs health checks: Python version, workspace access, file discovery, memory, and LLM configuration.
+- **Interactive REPL commands** — added `help`, `clear`, `memory`, `memory clear`, `history`, `status`, and `explain <prompt>` as inline REPL commands.
+- **Color support** — colored output with `--no-color` to disable. Auto-detects terminal support and respects `NO_COLOR`.
+- **`--version` flag** — print the installed version.
+- **`--json` output** — one-shot mode can output structured JSON for scripting and integration.
+- **Cross-platform install** — added `scripts/install.sh` for macOS/Linux alongside the existing PowerShell script.
+- **Improved intent matching** — added aliases like `cat`, `ls`, `dir`, `grep`, `quickstart`, `disk usage`, and `what is allinagent`.
+- **Fixed** the literal `\n` syntax error in `__init__.py` and the README that made the package unimportable.
+
+## Roadmap
 
 - Smarter multi-step local reasoning
 - Persistent offline project memory
@@ -218,19 +313,19 @@ ALLINAGENT/
 - Optional configuration file
 - Plugin/MCP hooks without losing local-first behavior
 
-## 🔧 Development
+## Development
 
 Keep the workflow simple:
 
 ```text
-inspect → plan → implement → test → verify → report
+inspect -> plan -> implement -> test -> verify -> report
 ```
 
 Core rule:
 
 > **Local capability first. External services are always opt-in.**
 
-## 📜 License
+## License
 
 MIT License.
 
