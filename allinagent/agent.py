@@ -20,6 +20,7 @@ class Agent:
         self.config = config or Config.from_env()
         self.use_llm = use_llm
         self.max_steps = max(1, max_steps)
+        self.memory_enabled = True
 
     def run(self, prompt: str) -> str:
         if not prompt.strip():
@@ -55,8 +56,8 @@ class Agent:
                 lines.append(f"- {c.get('description', '')[:100]}")
             return "\n".join(lines)
 
-        # Check for payment guidance requests (before creation)
-        if any(w in lower for w in ("sell", "payment", "stripe", "monetize", "pricing", "subscription")):
+        # Check for payment/env guidance requests (before creation)
+        if any(w in lower for w in ("sell", "payment", "stripe", "monetize", "pricing", "subscription", "env example", "env.example")):
             return self._payment_guidance(prompt)
 
         # Check for creation requests OR follow-up modifications
@@ -78,11 +79,34 @@ class Agent:
                 result = run_llm(prompt, tools=self.tools, config=self.config, max_steps=self.max_steps)
             except Exception as exc:
                 result = "ALLINAGENT external model failed safely; falling back to the local brain.\nReason: " + str(exc) + "\n\n" + self.local_brain.run(prompt)
-        self.memory.remember(prompt, result)
+        if hasattr(self, 'memory_enabled') and self.memory_enabled:
+            self.memory.remember(prompt, result)
         return result
 
     def _payment_guidance(self, prompt: str) -> str:
         """Provide safe payment/business guidance without handling credentials."""
+        lower = prompt.lower()
+        # Handle env example creation
+        if "env" in lower and ("example" in lower or "create" in lower or "scaffold" in lower or "generate" in lower):
+            if not self.tools.allow_write:
+                return ("ALLINAGENT: Write permission required to create .env.example.\n"
+                        "Run with --allow-write to create the file.")
+            result = self.tools.write_file(".env.example", (
+                "# Copy this file to .env and fill in your values.\n"
+                "# NEVER commit your .env file.\n\n"
+                "# Payment provider credentials (backend only)\n"
+                "# STRIPE_SECRET_KEY=sk_test_your_key_here\n"
+                "# STRIPE_PUBLISHABLE_KEY=pk_test_your_key_here\n"
+                "# PAYPAL_CLIENT_ID=your_client_id\n"
+                "# PAYPAL_CLIENT_SECRET=your_client_secret\n\n"
+                "# Application settings\n"
+                "# APP_PORT=3000\n"
+                "# APP_ENV=development\n"
+            ))
+            if "WRITE OK" in result:
+                return "Created .env.example with safe placeholder values.\nRemember: copy to .env, fill in real values, and never commit .env."
+            return result
+
         return """ALLINAGENT PAYMENT GUIDANCE
 
 ALLINAGENT can help you set up payment/selling infrastructure for your project.
@@ -100,7 +124,7 @@ RECOMMENDED APPROACH:
   3. Use a payment provider's SDK on the backend only.
   4. Add .env to your .gitignore.
 
-To scaffold a .env.example file, run:
+To create a .env.example file, run with --allow-write:
   allinagent --allow-write "create env example"
 
 ALLINAGENT will never expose, transmit, or store your payment credentials.

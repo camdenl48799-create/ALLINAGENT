@@ -2,6 +2,7 @@ __pycache__/
 *.pyc
 *.egg-info/
 .allinagent-memory.json
+.allinagent/
 .venv/
 venv/
 dist/

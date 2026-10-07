@@ -24,7 +24,6 @@ class ProjectMemory:
     def __init__(self, workspace: Path) -> None:
         self.workspace = workspace.resolve()
         self.project_dir = self.workspace / PROJECT_DIR
-        self.project_dir.mkdir(parents=True, exist_ok=True)
         self.path = self.project_dir / PROJECT_FILE
 
     def _load(self) -> dict:
@@ -38,6 +37,7 @@ class ProjectMemory:
 
     def _save(self, data: dict) -> None:
         try:
+            self.project_dir.mkdir(parents=True, exist_ok=True)
             self.path.write_text(
                 json.dumps(data, ensure_ascii=False, indent=2),
                 encoding="utf-8",

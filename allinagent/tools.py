@@ -134,6 +134,9 @@ class WorkspaceTools:
         t=self._safe_path(path)
         if not isinstance(content,str): return "WRITE ERROR: content must be text."
         if len(content.encode("utf-8"))>MAX_WRITE_BYTES: return "WRITE DENIED: content exceeds the 2 MB safety limit."
+        # Protect critical config files from silent overwrite
+        _protected={".allinagent.toml","pyproject.toml","setup.py","setup.cfg","requirements.txt","package.json","Cargo.toml","go.mod",".env",".gitignore","Dockerfile","docker-compose.yml","Makefile","CMakeLists.txt","tsconfig.json"}
+        if t.name in _protected and t.exists(): return f"WRITE DENIED: {t.name} is a protected config file. Use edit_file for targeted changes."
         try: t.parent.mkdir(parents=True,exist_ok=True); t.write_text(content,encoding="utf-8",newline="\n")
         except OSError as exc: return f"WRITE ERROR: {type(exc).__name__}: {exc}"
         return f"WRITE OK: {self._display(t)} ({len(content.encode('utf-8')):,} bytes)"
@@ -143,6 +146,11 @@ class WorkspaceTools:
         if self.dry_run: return "SHELL BLOCKED: --dry-run is active; nothing executed."
         command=command.strip()
         if not command: return "SHELL: provide a command."
+        # Guardrail: block dangerous commands
+        _dangerous=("rm -rf /","rm -rf ~","rm -rf .","mkfs","dd of=/dev/","shutdown","reboot","halt","poweroff")
+        _cmd_lower=command.lower()
+        for d in _dangerous:
+            if d in _cmd_lower: return f"SHELL DENIED: dangerous command pattern detected: {d}"
         try: result=subprocess.run(command,cwd=self.workspace,shell=True,text=True,capture_output=True,timeout=30,env=os.environ.copy())
         except subprocess.TimeoutExpired: return "SHELL ERROR: command exceeded the 30-second timeout."
         except OSError as exc: return f"SHELL ERROR: {type(exc).__name__}: {exc}"
@@ -245,8 +253,11 @@ class WorkspaceTools:
         if rel=="." or rel=="": return "DELETE DENIED: cannot delete the workspace root."
         # Block protected directories
         parts=t.relative_to(self.workspace).parts
-        protected={".git",".venv","venv","node_modules","__pycache__",".allinagent"}
-        if any(p in protected for p in parts): return f"DELETE DENIED: cannot delete protected directory: {path}"
+        protected_dirs={".git",".venv","venv","node_modules","__pycache__",".allinagent"}
+        if any(p in protected_dirs for p in parts): return f"DELETE DENIED: cannot delete protected directory: {path}"
+        # Block protected config files
+        _protected_files={".allinagent.toml","pyproject.toml","setup.py","setup.cfg","requirements.txt","package.json","Cargo.toml","go.mod",".env",".gitignore","Dockerfile","docker-compose.yml","Makefile","CMakeLists.txt","tsconfig.json",".allinagent-memory.json",".allinagent/project.json"}
+        if t.name in _protected_files: return f"DELETE DENIED: cannot delete protected file: {t.name}"
         try:
             if t.is_dir(): 
                 import shutil; shutil.rmtree(t)

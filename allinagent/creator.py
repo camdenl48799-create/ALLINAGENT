@@ -178,6 +178,9 @@ class Creator:
             for f in modified:
                 lines.append(f"  ~ {f}")
             self.project.add_change(f"{action}: {params}", modified)
+            for f in modified:
+                if ".html" in f or ".css" in f or ".js" in f:
+                    self.project.add_file(f, f"Modified file")
         else:
             lines.append("No files needed modification.")
             lines.append("Try being more specific, e.g., 'make the buttons bigger'")

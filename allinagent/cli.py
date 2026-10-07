@@ -260,6 +260,7 @@ def build_parser():
     p.add_argument("-v", "--verbose", action="store_true", help="Show mode and workspace")
     p.add_argument("--version", action="version", version=f"allinagent {__version__}")
     p.add_argument("--no-color", action="store_true", help="Disable colored output")
+    p.add_argument("--no-memory", action="store_true", help="Disable conversation memory storage")
     p.add_argument("--json", action="store_true", help="Output results as JSON (non-interactive)")
     return p
 
@@ -272,6 +273,7 @@ REPL commands:
   help                 Show this help
   clear                Clear the screen
   memory               Show memory status
+  memory view          Show recent conversation memory
   memory clear         Clear all saved memory
   project view         Show project context
   project status       Quick project status
@@ -364,6 +366,9 @@ def run_repl(agent: Agent, colors: Colors, version: str = __version__) -> int:
                     print(c.green("  Memory cleared."))
                 else:
                     print(c.red("  Could not clear memory."))
+            elif len(parts) > 1 and parts[1] == "view":
+                context = agent.memory.context()
+                print(context)
             else:
                 print(agent.memory.status())
             continue
@@ -474,6 +479,10 @@ def main():
         config=config,
         max_steps=args.max_steps,
     )
+    if args.no_memory:
+        agent.memory_enabled = False
+    else:
+        agent.memory_enabled = True
 
     # Interactive mode or no prompt -> REPL
     if args.interactive or not args.prompt:
