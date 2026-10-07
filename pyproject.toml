@@ -4,16 +4,22 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "allinagent"
-version = "1.0.0"
-description = "An independent, local-first AI coding agent"
+version = "1.1.0"
+description = "An independent, local-first AI agent for projects, coding, websites, memory and optional commerce"
 requires-python = ">=3.10"
 license = {text = "MIT"}
+keywords = ["ai", "agent", "coding", "local-first", "web-builder", "automation"]
 
 [project.optional-dependencies]
 llm = ["openai>=1.0"]
+web = ["fastapi>=0.115", "uvicorn>=0.30"]
+dev = ["pytest>=8.0"]
 
 [project.scripts]
 allinagent = "allinagent.cli:main"
 
 [tool.setuptools.packages.find]
 include = ["allinagent*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
