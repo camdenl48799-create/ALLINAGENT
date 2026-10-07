@@ -20,6 +20,7 @@ from .local_brain import LocalBrain
 from .memory import LocalMemory
 from .project import ProjectMemory
 from .react_builder import ReactBuilder
+from .repo_coder import RepoCoder
 from .tools import WorkspaceTools
 from .tool_registry import ToolRegistry
 from .understanding import RequestAnalyzer
@@ -45,6 +46,7 @@ class Agent:
         self.game_builder = GameBuilder(self.tools)
         self.document_builder = DocumentBuilder(self.tools)
         self.react_builder = ReactBuilder(self.tools)
+        self.repo_coder = RepoCoder(self.tools)
         self.git_tools = GitTools(self.tools)
         self.dashboard_gen = DashboardGenerator(self.tools)
         self.fixers = Fixers(self.tools)
@@ -53,7 +55,7 @@ class Agent:
         self.use_llm = use_llm
         self.max_steps = max(1, max_steps)
         self.memory_enabled = True
-        self.version = "1.3.0"
+        self.version = "1.4.0"
 
     def run(self, prompt: str) -> str:
         if not prompt.strip():
@@ -156,6 +158,10 @@ class Agent:
                 return "Note saved to project memory."
             return "Usage: project remember <note>"
 
+        # --- Repository coding mode ---
+        if self.repo_coder.can_handle(prompt):
+            return self._handle_repo_coding(prompt)
+
         # --- Payment guidance (before creation) ---
         if any(w in lower for w in ("sell", "payment", "stripe", "monetize",
                                      "pricing", "subscription", "env example", "env.example")):
@@ -185,6 +191,53 @@ class Agent:
         if hasattr(self, 'memory_enabled') and self.memory_enabled:
             self.memory.remember(prompt, result)
         return result
+
+    def _handle_repo_coding(self, prompt: str) -> str:
+        """Code an existing repository through the optional model tool loop."""
+        task = self.repo_coder.parse(prompt)
+        if not self.tools.allow_write:
+            return self.repo_coder.plan(task) + "\n\nWrite permission required: run with --allow-write."
+
+        if self.tools.dry_run:
+            return self.repo_coder.plan(task) + "\n\nDry-run is active; no files will be changed."
+
+        checkpoint_msg = ""
+        cp = self.checkpoints.create(description=f"Before repo coding: {prompt[:80]}")
+        checkpoint_msg = f"Checkpoint created: {cp.id}"
+
+        if not self.use_llm or not self.config.has_llm:
+            return (
+                self.repo_coder.plan(task)
+                + "\n\n"
+                + checkpoint_msg
+                + "\n"
+                + "Repository coding requires --llm with an API-compatible model in v1.4.0."
+                + "\nNo repository files were changed."
+            )
+
+        try:
+            from .llm import run_llm
+            result = run_llm(
+                self.repo_coder.coding_prompt(task),
+                tools=self.tools,
+                config=self.config,
+                max_steps=self.max_steps,
+            )
+            return (
+                "ALLINAGENT REPO CODING COMPLETE\n\n"
+                + checkpoint_msg
+                + "\n\n"
+                + result
+                + "\n\nReview with: git diff"
+                + "\nUndo with: rollback"
+            )
+        except Exception as exc:
+            return (
+                "ALLINAGENT REPO CODING FAILED SAFELY\n\n"
+                + checkpoint_msg
+                + f"\nReason: {type(exc).__name__}: {exc}"
+                + "\nNo claim of success was made. Use rollback if needed."
+            )
 
     def _handle_creation(self, prompt: str) -> str:
         """Handle creation and modification requests with full workflow."""
