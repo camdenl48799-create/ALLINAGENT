@@ -572,14 +572,14 @@ def test_agent_project_view(workspace: Path):
 # --- Version ---
 
 
-def test_version_is_1_3_0():
+def test_version_is_1_4_0():
     from allinagent import __version__
-    assert __version__ == "1.3.0"
+    assert __version__ == "1.4.0"
 
 
 def test_cli_version_output():
     from allinagent import __version__
-    assert "1.3.0" in __version__
+    assert "1.4.0" in __version__
 
 
 # --- TOML compatibility ---
