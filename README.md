@@ -1,13 +1,32 @@
 # ALLINAGENT
 
-> **v1.3.0 — Current release**
+> **v1.4.0 — Current release**
 
 **An independent, local-first AI creation and development agent.**
-Turn your ideas into real projects — websites, games, scripts, documents, and React apps — all on your machine.
+Turn your ideas into real projects — websites, games, scripts, documents, React apps, and existing-repository code changes — all on your machine.
 
 ## What's New in v1.3.0
 
 This upgrade adds git integration, real auto-fixers, React/Vite scaffolding, a project dashboard, and enhanced project memory with tasks, bugs, and decisions.
+
+
+### Repository Coding Mode
+
+v1.4.0 adds a repo-aware coding workflow for existing codebases. ALLINAGENT now inspects the repository before coding, creates a checkpoint before mutations, supplies project context to the model, and requires explicit write permission.
+
+Use: `allinagent --allow-write --llm "code this repo and add a settings page"`
+
+The coding workflow:
+- inspects project type, languages, frameworks, entry points, and tests
+- reads relevant files before editing
+- uses the existing workspace tool permissions
+- validates changes and can run tests when `--allow-shell` is supplied
+- reviews changes with `git diff`
+- supports optional branch, commit-message, and test-command hints
+- never claims success when the model/tool loop fails
+- keeps a checkpoint so changes can be rolled back
+
+Local mode can still produce a repo-specific coding plan without changing files. External model use remains opt-in through `--llm`.
 
 ### Git Integration
 
@@ -172,6 +191,7 @@ Agent (orchestrator)
 | `autoloop.py` | Autonomous build-test-fix loop with bounded retries |
 | `tool_registry.py` | Unified tool registry with schemas and permission metadata |
 | `git_tools.py` | Git integration — safe status, diff, summary without shell |
+| `repo_coder.py` | Existing-repository coding workflow and model context |
 | `fixers.py` | Real auto-fixers for JSON, HTML, CSS, and missing files |
 | `react_builder.py` | React/Vite project scaffolding |
 | `dashboard.py` | Static HTML project dashboard generation |
