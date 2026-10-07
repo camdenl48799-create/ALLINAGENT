@@ -105,6 +105,7 @@ TASK:
 
 RULES:
 - Inspect the repository before editing.
+- Do not invent files, APIs, or repository details.
 - Read relevant existing files; never invent their contents.
 - Make the smallest coherent implementation.
 - Preserve existing conventions and APIs unless a breaking change is requested.
