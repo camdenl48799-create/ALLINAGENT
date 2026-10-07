@@ -120,6 +120,114 @@ class ProjectMemory:
         data["decisions"] = decisions[-MAX_CHANGES:]
         self._save(data)
 
+    def add_task(self, task: str, status: str = "pending") -> None:
+        """Add a pending or completed task."""
+        data = self._load()
+        if not data:
+            return
+        tasks = data.get("pending_tasks", [])
+        tasks.append({"task": task[:MAX_TEXT], "status": status, "timestamp": datetime.now(timezone.utc).isoformat()})
+        data["pending_tasks"] = tasks[-MAX_CHANGES:]
+        self._save(data)
+
+    # Compatibility aliases matching the planned API names
+    def add_pending_task(self, task: str) -> None:
+        """Alias for add_task with pending status."""
+        self.add_task(task, status="pending")
+
+    def add_completed_task(self, task: str) -> None:
+        """Alias for add_task with completed status."""
+        self.add_task(task, status="completed")
+
+    def add_known_bug(self, description: str) -> None:
+        """Alias for add_bug."""
+        self.add_bug(description)
+
+    def add_completed_feature(self, feature: str) -> None:
+        """Record a completed feature in project memory."""
+        data = self._load()
+        if not data:
+            return
+        features = data.get("completed_features", [])
+        features.append({"feature": feature[:MAX_TEXT], "timestamp": datetime.now(timezone.utc).isoformat()})
+        data["completed_features"] = features[-MAX_CHANGES:]
+        self._save(data)
+
+    def complete_task(self, task: str) -> None:
+        """Mark a task as completed."""
+        data = self._load()
+        if not data:
+            return
+        tasks = data.get("pending_tasks", [])
+        for t in tasks:
+            if task.lower() in t.get("task", "").lower():
+                t["status"] = "completed"
+        data["pending_tasks"] = tasks
+        self._save(data)
+
+    def add_bug(self, description: str, status: str = "open") -> None:
+        """Record a known bug."""
+        data = self._load()
+        if not data:
+            return
+        bugs = data.get("known_bugs", [])
+        bugs.append({"description": description[:MAX_TEXT], "status": status, "timestamp": datetime.now(timezone.utc).isoformat()})
+        data["known_bugs"] = bugs[-MAX_CHANGES:]
+        self._save(data)
+
+    def remember(self, note: str) -> None:
+        """Store a user note/preference."""
+        data = self._load()
+        if not data:
+            return
+        prefs = data.get("user_preferences", [])
+        prefs.append({"note": note[:MAX_TEXT], "timestamp": datetime.now(timezone.utc).isoformat()})
+        data["user_preferences"] = prefs[-MAX_CHANGES:]
+        self._save(data)
+
+    def tasks(self) -> str:
+        """Show pending and completed tasks."""
+        data = self._load()
+        if not data:
+            return "No project initialized."
+        tasks = data.get("pending_tasks", [])
+        if not tasks:
+            return "No tasks recorded."
+        lines = ["PROJECT TASKS"]
+        for t in tasks:
+            status = t.get("status", "pending")
+            mark = "[x]" if status == "completed" else "[ ]"
+            lines.append(f"  {mark} {t.get('task', '')[:100]}")
+        return "\n".join(lines)
+
+    def bugs(self) -> str:
+        """Show known bugs."""
+        data = self._load()
+        if not data:
+            return "No project initialized."
+        bugs = data.get("known_bugs", [])
+        if not bugs:
+            return "No known bugs."
+        lines = ["KNOWN BUGS"]
+        for b in bugs:
+            status = b.get("status", "open")
+            mark = "!" if status == "open" else "x"
+            lines.append(f"  [{mark}] {b.get('description', '')[:100]}")
+        return "\n".join(lines)
+
+    def decisions(self) -> str:
+        """Show project decisions."""
+        data = self._load()
+        if not data:
+            return "No project initialized."
+        decisions = data.get("decisions", [])
+        if not decisions:
+            return "No decisions recorded."
+        lines = ["PROJECT DECISIONS"]
+        for d in decisions[-10:]:
+            lines.append(f"  - {d.get('decision', '')[:100]}")
+        return "\n".join(lines)
+
     def view(self) -> str:
         """Return a formatted view of project context."""
         data = self._load()
@@ -157,6 +265,22 @@ class ProjectMemory:
             for d in decisions[-5:]:
                 lines.append(f"    - {d.get('decision', '')[:100]}")
 
+        tasks = data.get("pending_tasks", [])
+        if tasks:
+            lines.append("")
+            lines.append(f"  Tasks ({len(tasks)}):")
+            for t in tasks:
+                status = t.get("status", "pending")
+                mark = "[x]" if status == "completed" else "[ ]"
+                lines.append(f"    {mark} {t.get('task', '')[:100]}")
+
+        bugs = data.get("known_bugs", [])
+        if bugs:
+            lines.append("")
+            lines.append(f"  Known bugs ({len(bugs)}):")
+            for b in bugs:
+                lines.append(f"    - {b.get('description', '')[:100]}")
+
         lines.append("")
         lines.append(f"  Location: {self.path}")
         return "\n".join(lines)
@@ -180,5 +304,7 @@ class ProjectMemory:
             f"  Kind: {data.get('kind', '(unknown)')}",
             f"  State: {data.get('state', '(unknown)')}",
             f"  Changes: {len(data.get('changes', []))}",
+            f"  Tasks: {len(data.get('pending_tasks', []))}",
+            f"  Bugs: {len(data.get('known_bugs', []))}",
             f"  Location: {self.path}",
         ])

@@ -1,8 +1,8 @@
-"""ALLINAGENT v1.2.5 orchestration: intelligence layer over deterministic safety core.
+"""ALLINAGENT v1.3.0 orchestration: intelligence layer over deterministic safety core.
 
 Architecture:
   LLM/Analyzer -> Agent -> Planner/Loop -> Tool Registry -> Tools/Builders
-  -> Validators -> Memory/Project -> Checkpoints
+  -> Validators -> Fixers -> Memory/Project -> Checkpoints -> Git
 """
 from __future__ import annotations
 from pathlib import Path
@@ -10,13 +10,18 @@ from .autoloop import AutonomousLoop, LoopConfig
 from .checkpoint import CheckpointManager
 from .config import Config
 from .creator import Creator
+from .dashboard import DashboardGenerator
 from .document_builder import DocumentBuilder
+from .fixers import Fixers
 from .game_builder import GameBuilder
+from .git_tools import GitTools
 from .inspector import Inspector
 from .local_brain import LocalBrain
 from .memory import LocalMemory
 from .project import ProjectMemory
+from .react_builder import ReactBuilder
 from .tools import WorkspaceTools
+from .tool_registry import ToolRegistry
 from .understanding import RequestAnalyzer
 from .validators import Validators
 from .website_builder import WebsiteBuilder
@@ -39,10 +44,16 @@ class Agent:
         self.website_builder = WebsiteBuilder(self.tools)
         self.game_builder = GameBuilder(self.tools)
         self.document_builder = DocumentBuilder(self.tools)
+        self.react_builder = ReactBuilder(self.tools)
+        self.git_tools = GitTools(self.tools)
+        self.dashboard_gen = DashboardGenerator(self.tools)
+        self.fixers = Fixers(self.tools)
+        self.tool_registry = ToolRegistry(self.tools)
         self.config = config or Config.from_env()
         self.use_llm = use_llm
         self.max_steps = max(1, max_steps)
         self.memory_enabled = True
+        self.version = "1.3.0"
 
     def run(self, prompt: str) -> str:
         if not prompt.strip():
@@ -73,6 +84,37 @@ class Agent:
             inspection = self.inspector.inspect()
             return inspection.summary()
 
+        # --- Git commands ---
+        if lower in ("git", "git status"):
+            return self.git_tools.status().summary()
+
+        if lower in ("git summary",):
+            return self.git_tools.summary()
+
+        if lower in ("git diff",) or lower.startswith("git diff "):
+            path = prompt[8:].strip() if lower.startswith("git diff ") else None
+            return self.git_tools.diff(path)
+
+        # --- Dashboard command ---
+        if lower in ("dashboard", "project dashboard"):
+            path = self.dashboard_gen.generate()
+            if path:
+                return f"Dashboard generated: {path}\nOpen in your browser to view."
+            return "Dashboard generation requires --allow-write."
+
+        # --- Validate command ---
+        if lower in ("validate", "validate project"):
+            inspection = self.inspector.inspect()
+            files = [self.tools._display(f) for f in self.tools._iter_files()]
+            result = self.validators.validate_project(files)
+            return result.summary()
+
+        # --- Fix command ---
+        if lower in ("fix", "fix errors"):
+            files = [self.tools._display(f) for f in self.tools._iter_files()]
+            result = self.fixers.fix_generated_files(files)
+            return result.summary()
+
         # --- Project memory commands ---
         if lower in ("project", "project view", "project status"):
             return self.project.view() if "view" in lower else self.project.status()
@@ -99,6 +141,20 @@ class Agent:
             for c in changes[-10:]:
                 lines.append(f"- {c.get('description', '')[:100]}")
             return "\n".join(lines)
+
+        # --- Project task/bug/decision commands ---
+        if lower == "project tasks":
+            return self.project.tasks()
+        if lower == "project bugs":
+            return self.project.bugs()
+        if lower == "project decisions":
+            return self.project.decisions()
+        if lower.startswith("project remember"):
+            note = prompt[len("project remember"):].strip()
+            if note:
+                self.project.remember(note)
+                return "Note saved to project memory."
+            return "Usage: project remember <note>"
 
         # --- Payment guidance (before creation) ---
         if any(w in lower for w in ("sell", "payment", "stripe", "monetize",
@@ -148,6 +204,14 @@ class Agent:
         if spec.kind == "modify" or spec.is_followup():
             return self._handle_modification(spec, prompt, checkpoint_msg)
         elif spec.kind == "website":
+            # Check if React was explicitly requested
+            if "react" in prompt.lower() or "vite" in prompt.lower():
+                return self._build_react(spec, prompt, inspection, checkpoint_msg)
+            return self._build_website(spec, prompt, inspection, checkpoint_msg)
+        elif spec.kind == "app":
+            # Check if React was explicitly requested
+            if "react" in prompt.lower() or "vite" in prompt.lower():
+                return self._build_react(spec, prompt, inspection, checkpoint_msg)
             return self._build_website(spec, prompt, inspection, checkpoint_msg)
         elif spec.kind == "game":
             return self._build_game(spec, prompt, inspection, checkpoint_msg)
@@ -372,6 +436,85 @@ class Agent:
 
         lines.append("")
         lines.append("CREATION COMPLETE")
+        return "\n".join(lines)
+
+    def _build_react(self, spec, prompt, inspection, checkpoint_msg) -> str:
+        """Build a React/Vite project with full workflow."""
+        if not self.tools.allow_write:
+            from .website_builder import CreationSpec
+            cs = CreationSpec(kind="website", name=spec.name, theme=spec.theme,
+                             color_scheme=spec.color_scheme, features=spec.features,
+                             tech="react", target_path=spec.target_path)
+            return self.creator._plan_only_report(cs, prompt)
+
+        lines = ["ALLINAGENT CREATION", ""]
+        lines.append(f"Project: {spec.name}")
+        lines.append(f"Type: react")
+        lines.append(f"Tech: Vite + React")
+        lines.append(f"Theme: {spec.theme}")
+        if spec.pages:
+            lines.append(f"Pages: {', '.join(spec.pages)}")
+        if spec.features:
+            lines.append(f"Features: {', '.join(spec.features)}")
+        lines.append("")
+        lines.append("Inspecting project...")
+        lines.append(f"  Found {inspection.total_files} existing files")
+        lines.append("")
+        if checkpoint_msg:
+            lines.append(checkpoint_msg)
+        lines.append("Planning...")
+        lines.append("Creating React project structure...")
+
+        # Build the React project
+        created = self.react_builder.build_react_project(spec)
+        lines.append(f"Writing React files ({len(created)} files)...")
+
+        # Validate
+        lines.append("Running validation...")
+        validation = self.validators.validate_project(created)
+        if validation.ok:
+            lines.append("  Validation: ALL PASSED")
+        else:
+            for fail in validation.failed:
+                lines.append(f"  ! {fail}")
+            # Attempt auto-fix
+            lines.append("  Attempting auto-fix...")
+            fix_result = self.fixers.fix_generated_files(created)
+            if fix_result.any_fixed:
+                lines.append(f"  Fixed {len(fix_result.fixed)} issue(s)")
+            for fail in fix_result.failed:
+                lines.append(f"  ! Cannot auto-fix: {fail}")
+
+        # Save project memory
+        self.project.create(name=spec.name, purpose=prompt[:500], kind="react",
+                            technologies=["React", "Vite", "JavaScript", "CSS"])
+        for f in created:
+            self.project.add_file(f)
+        self.project.add_change(f"Created React project: {spec.name}", created)
+        self.project.update(state="created", architecture="Vite + React SPA")
+
+        lines.append("Finishing up...")
+        lines.append("")
+        lines.append("=" * 50)
+        lines.append("")
+        lines.append("CREATION COMPLETE")
+        lines.append(f"  Project: {spec.name}")
+        lines.append(f"  Type: React (Vite)")
+        lines.append(f"  Files created: {len(created)}")
+        for f in created:
+            lines.append(f"    + {f}")
+        if validation.ok:
+            lines.append(f"  Validation: ALL PASSED")
+        lines.append("")
+        lines.append("Next steps:")
+        lines.append(f"  - Run: cd {spec.name} && npm install && npm run dev")
+        lines.append(f"  - View files: list files {spec.name}")
+        lines.append(f"  - Project info: project view")
+        lines.append(f"  - Checkpoint: checkpoint")
+        lines.append(f"  - Undo: rollback")
+        lines.append("")
+        lines.append("NOTE: You need Node.js installed to run npm commands.")
+        lines.append("ALLINAGENT generated the project files but did not run npm.")
         return "\n".join(lines)
 
     def _handle_modification(self, spec, prompt, checkpoint_msg) -> str:

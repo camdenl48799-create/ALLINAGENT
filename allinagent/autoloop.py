@@ -115,12 +115,18 @@ class AutonomousLoop:
                 break
 
             result.steps.append(f"Error detected. Attempting fix {len(result.fixes_applied) + 1}...")
-            fixed = self._attempt_fixes(validation.failed, files_to_validate)
-            result.fixes_applied.extend(fixed)
+            # Use the Fixers module for real auto-fixes
+            from .fixers import Fixers
+            fixers = Fixers(self.tools)
+            fix_result = fixers.fix_all(validation.failed)
+            result.fixes_applied.extend(fix_result.fixed)
+            for failed in fix_result.failed:
+                result.errors.append(failed)
 
-            if not fixed:
+            if not fix_result.any_fixed:
                 for fail in validation.failed:
-                    result.errors.append(fail)
+                    if fail not in result.errors:
+                        result.errors.append(fail)
                 break
 
             result.steps.append("Re-validating...")

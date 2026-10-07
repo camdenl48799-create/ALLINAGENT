@@ -245,7 +245,9 @@ def build_parser():
             "Creation: make me a website, make me a game, create a script\n"
             "Project: project view, project status, project clear\n"
             "Checkpoint: checkpoint, rollback, changes, diff <path>\n"
-            "Inspection: inspect\n"
+            "Inspection: inspect, validate, fix\n"
+            "Git: git status, git diff, git summary\n"
+            "Dashboard: dashboard\n"
             "Run 'allinagent init' to scaffold a workspace config.\n"
             "Run 'allinagent doctor' to run diagnostics."
         ),
@@ -283,8 +285,18 @@ REPL commands:
   project status       Quick project status
   project files        List tracked files
   project changes      Recent changes
+  project tasks        Show pending and completed tasks
+  project bugs         Show known bugs
+  project decisions    Show project decisions
+  project remember <n> Save a note to project memory
   project clear         Delete project memory
   inspect              Inspect the project structure
+  validate             Validate all project files
+  fix                  Attempt to fix validation errors
+  dashboard            Generate a project dashboard (HTML)
+  git status           Show git status
+  git diff              Show git diff
+  git summary           Compact git summary
   checkpoint           Create a checkpoint snapshot
   rollback             Rollback to last checkpoint
   changes              Show changes since last checkpoint
@@ -297,6 +309,7 @@ REPL commands:
 Creation commands:
   make me a website    Create a website (requires --allow-write)
   make me a game       Create a game (requires --allow-write)
+  make me a React app  Create a React/Vite project (requires --allow-write)
   create a script      Create a script (requires --allow-write)
   create a document    Create a document (requires --allow-write)
 
@@ -476,10 +489,56 @@ def main():
         workspace = Path(args.workspace).resolve()
         from .inspector import Inspector
         from .tools import WorkspaceTools
+        import json as _json
         tools = WorkspaceTools(workspace)
         inspector = Inspector(tools)
         inspection = inspector.inspect()
+        # Check for --json flag (consumed by argparse as args.json)
+        if getattr(args, "json", False):
+            data = {
+                "project_type": inspection.project_type,
+                "total_files": inspection.total_files,
+                "languages": inspection.languages,
+                "frameworks": inspection.frameworks,
+                "dependencies": inspection.dependencies,
+                "entry_points": inspection.entry_points,
+                "config_files": inspection.config_files,
+                "test_files": inspection.test_files,
+                "important_files": inspection.important_files,
+                "has_tests": inspection.has_tests,
+                "has_git": inspection.has_git,
+                "has_docs": inspection.has_docs,
+            }
+            print(_json.dumps(data, indent=2))
+            return 0
         print(inspection.summary())
+        return 0
+
+    if args.prompt and args.prompt[0].lower() in ("validate", "fix", "dashboard"):
+        workspace = Path(args.workspace).resolve()
+        config = Config.from_env()
+        agent = Agent(workspace, config=config, allow_write=args.allow_write,
+                      allow_shell=args.allow_shell, dry_run=args.dry_run)
+        cmd = args.prompt[0].lower()
+        print(agent.run(cmd))
+        return 0
+
+    if args.prompt and args.prompt[0].lower() == "git":
+        workspace = Path(args.workspace).resolve()
+        from .git_tools import GitTools
+        from .tools import WorkspaceTools
+        tools = WorkspaceTools(workspace, allow_shell=args.allow_shell)
+        git = GitTools(tools)
+        sub = args.prompt[1].lower() if len(args.prompt) > 1 else "status"
+        if sub == "status":
+            print(git.status().summary())
+        elif sub == "diff":
+            path = args.prompt[2] if len(args.prompt) > 2 else None
+            print(git.diff(path))
+        elif sub == "summary":
+            print(git.summary())
+        else:
+            print(git.status().summary())
         return 0
 
     workspace = Path(args.workspace).resolve()

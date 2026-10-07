@@ -305,6 +305,11 @@ class RequestAnalyzer:
             return "my-script"
         elif kind == "document":
             return "my-document"
+        elif kind == "app":
+            # Check if React/Vite was mentioned
+            if "react" in text or "vite" in text:
+                return "react-app"
+            return "my-app"
         return "my-project"
 
     def _detect_tech(self, text: str) -> str:

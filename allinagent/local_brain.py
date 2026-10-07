@@ -100,7 +100,7 @@ class LocalBrain:
             ), 70),
             ("project", (
                 r"\bproject\b",
-                r"\bproject (view|status|clear|files|changes)\b",
+                r"\bproject (view|status|clear|files|changes|tasks|bugs|decisions|remember)\b",
             ), 72),
         ]
 
@@ -185,6 +185,7 @@ Identity
 Creation
   make me a website        Create a website project.
   make me a game           Create a game project.
+  make me a React app      Create a React/Vite project.
   create a script           Create a Python script.
   build me a document       Create a document.
 
@@ -193,7 +194,28 @@ Project
   project status            Quick project status.
   project files             List tracked files.
   project changes           Show recent changes.
+  project tasks             Show pending and completed tasks.
+  project bugs              Show known bugs.
+  project decisions         Show project decisions.
+  project remember <note>  Save a note to project memory.
   project clear             Delete project memory.
+
+Inspection & Validation
+  inspect                   Inspect the project structure.
+  validate                  Validate all project files.
+  fix                       Attempt to fix validation errors.
+  dashboard                 Generate a project dashboard (HTML).
+
+Git
+  git status                Show git status.
+  git diff                  Show git diff.
+  git summary               Compact git summary.
+
+Checkpoint
+  checkpoint                Create a snapshot.
+  rollback                  Undo to last checkpoint.
+  changes                   See what changed since checkpoint.
+  diff <path>               Show file diff against checkpoint.
 
 Workspace
   analyze project          Summarize files and file types.
@@ -221,6 +243,7 @@ CLI commands
   allinagent --version       Show the installed version.
   allinagent --json <task>   Output results as JSON.
   allinagent --no-color      Disable colored output.
+  allinagent inspect --json  Output project inspection as JSON.
 
 For broader reasoning, explicitly opt into an OpenAI-compatible model with --llm."""
 

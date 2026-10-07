@@ -27,6 +27,7 @@ class CreationSpec:
     target_path: str = ""
     extra: dict = field(default_factory=dict)
     requirements: list[str] = field(default_factory=list)
+    pages: list[str] = field(default_factory=list)
 
 
 class WebsiteBuilder:
