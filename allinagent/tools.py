@@ -207,5 +207,81 @@ class WorkspaceTools:
     def diagnostics(self)->str:
         return "\n".join(["ALLINAGENT TOOL DIAGNOSTICS",f"- workspace exists: {self.workspace.exists()}",f"- workspace writable: {os.access(self.workspace,os.W_OK)}",f"- visible files: {sum(1 for _ in self._iter_files())}",f"- visible size: {self.workspace_size_bytes()/1024/1024:.2f} MB",f"- write permission: {self.allow_write and not self.dry_run}",f"- shell permission: {self.allow_shell and not self.dry_run}","- path traversal protection: active"])
 
+    def create_dir(self,path:str)->str:
+        """Create a directory inside the workspace."""
+        if not self.allow_write: return "WRITE DENIED: pass --allow-write to enable file mutations."
+        if self.dry_run: return "WRITE BLOCKED: --dry-run is active; no directory created."
+        t=self._safe_path(path)
+        try:
+            t.mkdir(parents=True,exist_ok=True)
+        except OSError as exc: return f"MKDIR ERROR: {type(exc).__name__}: {exc}"
+        return f"MKDIR OK: {self._display(t) or '.'}"
+
+    def rename_file(self,old_path:str,new_path:str)->str:
+        """Rename or move a file within the workspace."""
+        if not self.allow_write: return "WRITE DENIED: pass --allow-write to enable file mutations."
+        if self.dry_run: return "WRITE BLOCKED: --dry-run is active; nothing renamed."
+        src=self._safe_path(old_path); dst=self._safe_path(new_path)
+        if not src.exists(): return f"RENAME: source does not exist: {old_path}"
+        if dst.exists(): return f"RENAME: destination already exists: {new_path}"
+        try:
+            dst.parent.mkdir(parents=True,exist_ok=True); src.rename(dst)
+        except OSError as exc: return f"RENAME ERROR: {type(exc).__name__}: {exc}"
+        return f"RENAME OK: {self._display(src)} -> {self._display(dst)}"
+
+    def move_file(self,old_path:str,new_path:str)->str:
+        """Move a file within the workspace (alias for rename_file)."""
+        return self.rename_file(old_path,new_path)
+
+    def delete_file(self,path:str,confirm:bool=False)->str:
+        """Delete a file or directory. Requires explicit confirmation."""
+        if not self.allow_write: return "DELETE DENIED: pass --allow-write to enable file mutations."
+        if self.dry_run: return "DELETE BLOCKED: --dry-run is active; nothing deleted."
+        if not confirm: return "DELETE: confirmation required. Pass confirm=True to proceed."
+        t=self._safe_path(path)
+        if not t.exists(): return f"DELETE: path does not exist: {path}"
+        # Block workspace root deletion
+        rel=self._display(t)
+        if rel=="." or rel=="": return "DELETE DENIED: cannot delete the workspace root."
+        # Block protected directories
+        parts=t.relative_to(self.workspace).parts
+        protected={".git",".venv","venv","node_modules","__pycache__",".allinagent"}
+        if any(p in protected for p in parts): return f"DELETE DENIED: cannot delete protected directory: {path}"
+        try:
+            if t.is_dir(): 
+                import shutil; shutil.rmtree(t)
+            else: 
+                t.unlink()
+        except OSError as exc: return f"DELETE ERROR: {type(exc).__name__}: {exc}"
+        return f"DELETE OK: {rel}"
+
+    def edit_file(self,path:str,old_str:str,new_str:str)->str:
+        """Replace a text snippet in a file."""
+        if not self.allow_write: return "WRITE DENIED: pass --allow-write to enable file mutations."
+        if self.dry_run: return "WRITE BLOCKED: --dry-run is active; no file changed."
+        t=self._safe_path(path)
+        if not t.exists(): return f"EDIT: file does not exist: {path}"
+        if not t.is_file(): return f"EDIT: not a file: {path}"
+        try: content=t.read_text(encoding="utf-8")
+        except OSError as exc: return f"EDIT ERROR: {type(exc).__name__}: {exc}"
+        except UnicodeDecodeError: return f"EDIT: {path} is not valid UTF-8 text."
+        if old_str not in content: return f"EDIT: text not found in {path}"
+        new_content=content.replace(old_str,new_str,1)
+        if len(new_content.encode("utf-8"))>MAX_WRITE_BYTES: return "EDIT DENIED: result exceeds the 2 MB safety limit."
+        try: t.write_text(new_content,encoding="utf-8",newline="\n")
+        except OSError as exc: return f"EDIT ERROR: {type(exc).__name__}: {exc}"
+        return f"EDIT OK: {self._display(t)} (1 replacement)"
+
+    def write_files(self,files:dict[str,str])->str:
+        """Write multiple files at once. Returns a summary."""
+        if not self.allow_write: return "WRITE DENIED: pass --allow-write to enable file mutations."
+        if self.dry_run: return "WRITE BLOCKED: --dry-run is active; no files changed."
+        results=[]; ok=0; fail=0
+        for path,content in files.items():
+            r=self.write_file(path,content)
+            if "WRITE OK" in r: ok+=1; results.append(f"  OK  {path}")
+            else: fail+=1; results.append(f"  FAIL  {path}: {r}")
+        return f"WRITE FILES: {ok} ok, {fail} failed\n"+"\n".join(results)
+
     def safe_cleanup_note(self)->str:
         return "\n".join(["ALLINAGENT CLEANUP POLICY","- Storage inspection is read-only.","- Automatic deletion is not part of this toolset.","- Review files before removing anything.","- Writes remain behind --allow-write and --dry-run."])

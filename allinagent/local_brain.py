@@ -12,10 +12,12 @@ from dataclasses import dataclass
 from typing import Callable
 
 from .tools import WorkspaceTools
+from .creator import Creator
 
 IDENTITY = (
     "I'm ALLINAGENT — an independent, local-first AI coding agent. "
-    "My local brain and tools run on your machine. External models are optional fuel."
+    "My local brain and tools run on your machine. External models are optional fuel. "
+    "I can help you create websites, games, scripts, and other projects."
 )
 
 
@@ -87,6 +89,19 @@ class LocalBrain:
                 r"\bnext steps\b",
                 r"\bworkflow\b",
             ), 75),
+            ("create", (
+                r"\bmake me\b",
+                r"\bcreate\b",
+                r"\bbuild me\b",
+                r"\bgenerate\b",
+                r"\bscaffold\b",
+                r"\blet'?s make\b",
+                r"\bi want\b.*\b(?:website|game|app|script|tool)\b",
+            ), 70),
+            ("project", (
+                r"\bproject\b",
+                r"\bproject (view|status|clear|files|changes)\b",
+            ), 72),
         ]
 
     def can_handle(self, prompt: str) -> bool:
@@ -151,6 +166,8 @@ class LocalBrain:
             "search": lambda: self._search(intent),
             "status": self._status,
             "plan": self._plan,
+            "create": self._create_hint,
+            "project": self._project_hint,
             "empty": lambda: "ALLINAGENT: give me a task.",
             "unknown": self._unknown,
         }
@@ -164,6 +181,19 @@ class LocalBrain:
 
 Identity
   who are you              Explain ALLINAGENT's identity.
+
+Creation
+  make me a website        Create a website project.
+  make me a game           Create a game project.
+  create a script           Create a Python script.
+  build me a document       Create a document.
+
+Project
+  project view              Show project context and memory.
+  project status            Quick project status.
+  project files             List tracked files.
+  project changes           Show recent changes.
+  project clear             Delete project memory.
 
 Workspace
   analyze project          Summarize files and file types.
@@ -183,6 +213,7 @@ Safety
   Shell execution requires --allow-shell.
   --dry-run disables mutations even when permissions are supplied.
   Paths are sandboxed to the configured workspace.
+  File deletion requires explicit confirmation.
 
 CLI commands
   allinagent init           Scaffold a workspace config (.allinagent.toml).
@@ -301,6 +332,27 @@ Local mode never sends code or prompts to a network service."""
             "optional external reasoning."
         )
 
+    def _create_hint(self) -> str:
+        return (
+            "ALLINAGENT can create websites, games, scripts, and other projects.\n"
+            "Examples:\n"
+            "  make me a dark gaming website\n"
+            "  create a game called DOG GO\n"
+            "  build me a Python script\n\n"
+            "To actually create files, run with --allow-write."
+        )
+
+    def _project_hint(self) -> str:
+        return (
+            "Project commands:\n"
+            "  project view    - Show project context\n"
+            "  project status  - Quick status\n"
+            "  project files   - List tracked files\n"
+            "  project changes - Recent changes\n"
+            "  project clear   - Delete project memory\n\n"
+            "Create a project first with: make me a website"
+        )
+
     def _limit_output(self, value: str) -> str:
         if len(value) <= self.MAX_OUTPUT:
             return value
@@ -367,6 +419,12 @@ Local mode never sends code or prompts to a network service."""
             "plan",
             "doctor",
             "quickstart",
+            "make me a website",
+            "make me a game",
+            "create a script",
+            "project view",
+            "project status",
+            "project clear",
         )
 
 

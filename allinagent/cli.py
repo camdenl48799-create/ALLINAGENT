@@ -273,10 +273,20 @@ REPL commands:
   clear                Clear the screen
   memory               Show memory status
   memory clear         Clear all saved memory
+  project view         Show project context
+  project status       Quick project status
+  project files        List tracked files
+  project changes      Recent changes
+  project clear         Delete project memory
   history              Show recent conversation history
   status               Show workspace and capability status
   explain <prompt>     Show how the local brain classifies a prompt
   exit, quit           Exit the REPL
+
+Creation commands:
+  make me a website    Create a website (requires --allow-write)
+  make me a game       Create a game (requires --allow-write)
+  create a script      Create a script (requires --allow-write)
 
 Local brain commands:
   who are you          Identity
@@ -356,6 +366,44 @@ def run_repl(agent: Agent, colors: Colors, version: str = __version__) -> int:
                     print(c.red("  Could not clear memory."))
             else:
                 print(agent.memory.status())
+            continue
+
+        if lower.startswith("project"):
+            parts = lower.split(None, 1)
+            sub = parts[1] if len(parts) > 1 else "view"
+            if sub == "clear":
+                if agent.project.clear():
+                    print(c.green("  Project memory cleared."))
+                else:
+                    print(c.red("  Could not clear project memory."))
+            elif sub == "status":
+                print(agent.project.status())
+            elif sub == "files":
+                data = agent.project._load()
+                if not data:
+                    print(c.dim("  No project initialized."))
+                else:
+                    files = data.get("important_files", [])
+                    if not files:
+                        print(c.dim("  No tracked files."))
+                    else:
+                        print(c.bold("  Tracked files:"))
+                        for f in files:
+                            print(f"  {c.dim('-')} {f['path']}")
+            elif sub == "changes":
+                data = agent.project._load()
+                if not data:
+                    print(c.dim("  No project initialized."))
+                else:
+                    changes = data.get("changes", [])
+                    if not changes:
+                        print(c.dim("  No changes recorded."))
+                    else:
+                        print(c.bold("  Recent changes:"))
+                        for ch in changes[-10:]:
+                            print(f"  {c.dim('-')} {ch.get('description', '')[:100]}")
+            else:
+                print(agent.project.view())
             continue
 
         if lower == "history":
