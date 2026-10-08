@@ -1,10 +1,52 @@
 # ALLINAGENT
 
-> **v1.4.0 — Current release**
+> **v1.5.0 — Current release**
 
 **An independent, local-first AI creation and development agent.**
 Turn your ideas into real projects — websites, games, scripts, documents, React apps, and existing-repository code changes — all on your machine.
 
+
+## What's New in v1.5.0
+
+v1.5.0 is the major capability expansion for ALLINAGENT: stronger game-development workflows, detailed-prompt contracts, model capability routing, storage health, and defensive local security scanning.
+
+### Game Development Power
+
+ALLINAGENT now has explicit game-development capability metadata for C, C++, C#, Lua, Luau, Python, JavaScript/TypeScript, GLSL and HLSL, plus Unity, Unreal Engine, Godot and Roblox Studio project detection.
+
+Use `allinagent game support` to inspect the current workspace.
+
+### Detailed Prompt Contracts
+
+Use `allinagent prompt check "your detailed prompt"` to turn a request into an explicit requirement contract. Model workflows are instructed to verify every requirement and report PASS, NOT VERIFIED, or BLOCKED honestly.
+
+### Model Capability Layer
+
+The v1.5.0 model router defines specialized capability profiles for coding, game development, reasoning, and general creation. Providers remain optional; ALLINAGENT does not require a paid model service.
+
+Use `allinagent models status` to view the capability layer.
+
+### Storage Health
+
+Daily storage checks report free disk space and the largest workspace files without automatically deleting anything:
+
+`allinagent storage daily`
+
+### Defensive Security Scanner
+
+v1.5.0 adds a local heuristic security scanner that identifies suspicious patterns and reports a confidence/risk estimate. A score is not proof of malware and the scanner does not replace Windows Security/Defender.
+
+`allinagent security scan`
+
+`allinagent security quarantine path/to/file`
+
+Quarantine is restricted to files inside the workspace and requires `--allow-write`. Protected Windows system paths are never modified or quarantined by this feature.
+
+### Protected System Boundary
+
+The security and storage systems explicitly avoid modifying or deleting OS-critical Windows paths such as System32, SysWOW64, WinSxS, boot, and servicing components.
+
+---
 ## What's New in v1.4.0
 
 This release adds repo-aware coding workflows, building on the Git integration, real auto-fixers, React/Vite scaffolding, project dashboard, and enhanced project memory introduced in v1.3.0.
@@ -177,6 +219,7 @@ Agent (orchestrator)
     +-- Guardrails (destructive operation protection)
     +-- Project Memory (.allinagent/project.json with tasks, bugs, decisions)
     +-- Conversation Memory (.allinagent-memory.json)
+    +-- v1.5.0 Security Scanner / Storage Health / Game Dev / Prompt Contract / Model Router
     +-- Optional LLM (OpenAI-compatible)
 ```
 
@@ -209,6 +252,11 @@ Agent (orchestrator)
 | `config.py` | Environment-based configuration |
 | `llm.py` | Optional OpenAI-compatible tool loop |
 | `prompts.py` | System prompts for external model mode |
+| `storage_health.py` | Disk/free-space health reporting |
+| `security.py` | Defensive local security heuristics and workspace quarantine |
+| `game_dev.py` | Game development support |
+| `prompt_contract.py` | Detailed requirement extraction and verification |
+| `model_router.py` | Specialized model capability profiles |
 
 ## Installation
 
@@ -452,7 +500,7 @@ Workflow: `inspect → plan → build → validate → fix → report`
 - Desktop app generation is not supported
 - Autonomous error fixing is limited to detection and reporting
 
-## Roadmap (v1.4.0+)
+## Roadmap (v1.5.0+)
 
 - Browser-based IDE interface
 - Streaming LLM mode
@@ -465,4 +513,4 @@ Workflow: `inspect → plan → build → validate → fix → report`
 
 MIT License.
 
-**ALLINAGENT v1.4.0 — Independent. Local-first. Honest. Built to create.**
+**ALLINAGENT v1.5.0 — Independent. Local-first. Honest. Built to create.**
