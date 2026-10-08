@@ -10,6 +10,7 @@ from dataclasses import dataclass, field
 from typing import Any, Callable
 
 from .tools import WorkspaceTools
+from .build import WindowsBuilder
 
 
 @dataclass
@@ -36,6 +37,7 @@ class ToolRegistry:
     def _register_all(self) -> None:
         """Register all available tools."""
         t = self.tools
+        builder = WindowsBuilder(t.workspace, allow_shell=t.allow_shell, dry_run=t.dry_run)
 
         # Read-only tools (safe by default)
         self.register("project_summary", "Summarize workspace files and file types",
@@ -148,6 +150,17 @@ class ToolRegistry:
                       {"type": "object", "properties": {"command": {"type": "string"}},
                        "required": ["command"]},
                       lambda command: t.run_shell(command),
+                      mutates=True, requires_shell=True, risk="high")
+
+        # Build/package tools (requires shell permission)
+        self.register("build_exe", "Detect a supported project, build a real Windows EXE, and show the PowerShell build log",
+                      {"type": "object", "properties": {
+                          "project": {"type": "string"},
+                          "entry": {"type": "string"},
+                          "output": {"type": "string"},
+                          "timeout": {"type": "integer", "minimum": 1, "maximum": 1800}
+                      }},
+                      lambda project=None, entry=None, output=None, timeout=120: builder.build(project, entry, output, timeout),
                       mutates=True, requires_shell=True, risk="high")
 
     def register(self, name: str, description: str, input_schema: dict,
