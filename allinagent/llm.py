@@ -40,7 +40,10 @@ def call_tool(t, name, args):
 def run_llm(prompt, *, tools, config: Config, max_steps=8):
     from openai import OpenAI
     client = OpenAI(api_key=config.api_key, base_url=config.base_url or None)
-    profile = choose_profile(prompt)\n    contract = build_contract(prompt)\n    system = SYSTEM_PROMPT + "\\n\\nACTIVE MODEL PROFILE: " + profile.name + "\\n\\n" + verification_instructions(contract)\n    messages = [{"role":"system","content":system},{"role":"user","content":prompt}]
+    profile = choose_profile(prompt)
+    contract = build_contract(prompt)
+    system = SYSTEM_PROMPT + "\n\nACTIVE MODEL PROFILE: " + profile.name + "\n\n" + verification_instructions(contract)
+    messages = [{"role": "system", "content": system}, {"role": "user", "content": prompt}]
     for _ in range(max(1, max_steps)):
         response = client.chat.completions.create(model=config.model or "default", messages=messages, tools=TOOLS, tool_choice="auto")
         message = response.choices[0].message
