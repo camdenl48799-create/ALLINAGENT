@@ -5,9 +5,9 @@
 **An independent, local-first AI creation and development agent.**
 Turn your ideas into real projects — websites, games, scripts, documents, React apps, and existing-repository code changes — all on your machine.
 
-## What's New in v1.3.0
+## What's New in v1.4.0
 
-This upgrade adds git integration, real auto-fixers, React/Vite scaffolding, a project dashboard, and enhanced project memory with tasks, bugs, and decisions.
+This release adds repo-aware coding workflows, building on the Git integration, real auto-fixers, React/Vite scaffolding, project dashboard, and enhanced project memory introduced in v1.3.0.
 
 
 ### Repository Coding Mode
@@ -395,7 +395,7 @@ Run `allinagent init` to create `.allinagent.toml`.
 ```text
 ALLINAGENT/
 ├── allinagent/
-│   ├── __init__.py          (v1.2.5)
+│   ├── __init__.py          (v1.4.0)
 │   ├── __main__.py
 │   ├── agent.py             (orchestrator)
 │   ├── understanding.py      (request analyzer)
@@ -452,10 +452,9 @@ Workflow: `inspect → plan → build → validate → fix → report`
 - Desktop app generation is not supported
 - Autonomous error fixing is limited to detection and reporting
 
-## Roadmap (v1.3.0+)
+## Roadmap (v1.4.0+)
 
 - Browser-based IDE interface
-- Git integration
 - Streaming LLM mode
 - React/Next.js project generation
 - Auto-fix error recovery loop
@@ -466,4 +465,4 @@ Workflow: `inspect → plan → build → validate → fix → report`
 
 MIT License.
 
-**ALLINAGENT v1.2.5 — Independent. Local-first. Honest. Built to create.**
+**ALLINAGENT v1.4.0 — Independent. Local-first. Honest. Built to create.**
