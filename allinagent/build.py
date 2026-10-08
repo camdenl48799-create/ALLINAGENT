@@ -37,6 +37,11 @@ class WindowsBuilder:
             raise BuildError(f"Path escapes workspace: {value}") from exc
         return target
 
+    @staticmethod
+    def _ps_quote(value: str | Path) -> str:
+        """Quote a path as a literal PowerShell string."""
+        return "'" + str(value).replace("'", "''") + "'"
+
     def _run_powershell(self, command: str, timeout: int = DEFAULT_TIMEOUT) -> tuple[int, str]:
         if os.name != "nt":
             raise BuildError("Windows EXE building requires Windows/PowerShell.")
@@ -90,9 +95,9 @@ class WindowsBuilder:
             return {"type": "node", "entry": "package.json"}
         return {"type": "unknown", "entry": None}
 
-    def _find_exes(self, before: set[Path]) -> list[Path]:
+    def _find_exes(self, before: set[Path], root: Path | None = None) -> list[Path]:
         found = []
-        for p in self.workspace.rglob("*.exe"):
+        for p in (root or self.workspace).rglob("*.exe"):
             if any(part in {".git", ".venv", "venv", "node_modules", "__pycache__"} for part in p.parts):
                 continue
             if p not in before and p.is_file():
@@ -115,18 +120,18 @@ class WindowsBuilder:
             csproj = project_path or self._safe(detection["entry"])
             rel = csproj.relative_to(self.workspace).as_posix()
             command = (
-                f"dotnet publish '{rel}' -c Release -r win-x64 "
+                f"dotnet publish {self._ps_quote(rel)} -c Release -r win-x64 "
                 f"--self-contained true -p:PublishSingleFile=true"
             )
             if output:
                 out = self._safe(output)
-                command += f" -o '{out.relative_to(self.workspace).as_posix()}'"
+                command += f" -o {self._ps_quote(out.relative_to(self.workspace).as_posix())}"
         elif kind == "python":
             main = entry_path or (self._safe(detection["entry"]) if detection["entry"] else None)
             if not main:
                 return "BUILD ERROR: Python project detected but no entry file was found. Specify entry=main.py."
             rel = main.relative_to(self.workspace).as_posix()
-            command = f"python -m PyInstaller --noconfirm --clean --onefile --windowed '{rel}'"
+            command = f"python -m PyInstaller --noconfirm --clean --onefile --windowed {self._ps_quote(rel)}"
         elif kind == "node":
             return ("BUILD UNSUPPORTED: package.json was detected, but Node.js projects need "
                     "an explicit Windows packaging tool/configuration (for example an existing "
@@ -139,25 +144,21 @@ class WindowsBuilder:
         if code != 0:
             return f"BUILD FAILED\n{log}\n\nExit code: {code}"
 
-        exes = self._find_exes(before)
-        if output:
-            out_dir = self._safe(output)
-            exes = [p for p in exes if p.parent == out_dir]
+        out_dir = self._safe(output) if output else None
+        exes = self._find_exes(before, out_dir)
+        if not exes and out_dir is not None:
+            exes = self._find_exes(set(), out_dir)
         if not exes:
-            exes = sorted(
-                [p for p in self.workspace.rglob("*.exe")
-                 if not any(part in {".git", ".venv", "venv", "node_modules"} for part in p.parts)],
-                key=lambda p: p.stat().st_mtime_ns, reverse=True,
-            )
-        if not exes:
-            return f"BUILD FAILED\n{log}\n\nNo .exe file was found after a successful build."
+            reason = (f"No .exe file was found in the output directory: {out_dir}."
+                      if output else "No new .exe file was produced by the build.")
+            return f"BUILD FAILED\n{log}\n\n{reason}"
 
         exe = exes[0]
         size = exe.stat().st_size
         if size <= 0:
             return f"BUILD FAILED\n{log}\n\nEXE validation failed: {exe} is empty."
 
-        check = f"(Get-Item -LiteralPath '{exe.relative_to(self.workspace).as_posix()}').Length"
+        check = f"(Get-Item -LiteralPath {self._ps_quote(exe.relative_to(self.workspace).as_posix())}).Length"
         check_code, check_log = self._run_powershell(check, timeout=30)
         if check_code != 0:
             return f"BUILD FAILED\n{log}\n\nEXE validation failed\n{check_log}"
