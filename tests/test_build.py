@@ -36,8 +36,8 @@ def test_build_dry_run_does_not_execute(tmp_path: Path):
 
 @pytest.mark.parametrize("kind", ["dotnet", "python"])
 def test_build_quotes_paths(tmp_path: Path, monkeypatch, kind: str):
-    name = "O'Brien'; Write-Output $env:TEMP; 'back`tick"
-    quoted_name = "O''Brien''; Write-Output $env:TEMP; ''back`tick"
+    name = "O'Brien'; Write-Output $envTEMP; 'back`tick"
+    quoted_name = "O''Brien''; Write-Output $envTEMP; ''back`tick"
     suffix = ".csproj" if kind == "dotnet" else ".py"
     source = tmp_path / (name + suffix)
     source.write_text("", encoding="utf-8")
