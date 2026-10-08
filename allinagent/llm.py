@@ -4,6 +4,8 @@ import json
 from .config import Config
 from .prompts import SYSTEM_PROMPT
 from .tools import WorkspaceTools
+from .model_router import choose_profile
+from .prompt_contract import build_contract, verification_instructions
 
 TOOLS = [
  {"type":"function","function":{"name":"project_summary","description":"Summarize workspace files","parameters":{"type":"object","properties":{}}}},
@@ -38,7 +40,7 @@ def call_tool(t, name, args):
 def run_llm(prompt, *, tools, config: Config, max_steps=8):
     from openai import OpenAI
     client = OpenAI(api_key=config.api_key, base_url=config.base_url or None)
-    messages = [{"role":"system","content":SYSTEM_PROMPT},{"role":"user","content":prompt}]
+    profile = choose_profile(prompt)\n    contract = build_contract(prompt)\n    system = SYSTEM_PROMPT + "\\n\\nACTIVE MODEL PROFILE: " + profile.name + "\\n\\n" + verification_instructions(contract)\n    messages = [{"role":"system","content":system},{"role":"user","content":prompt}]
     for _ in range(max(1, max_steps)):
         response = client.chat.completions.create(model=config.model or "default", messages=messages, tools=TOOLS, tool_choice="auto")
         message = response.choices[0].message
