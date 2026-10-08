@@ -480,7 +480,7 @@ def v15_command(prompt: list[str], workspace: Path, args, colors: Colors) -> int
         print(daily_check(workspace))
         return 0
 
-    if command == "security" and len(prompt) >= 2:
+    if command in ("security", "antivirus") and len(prompt) >= 2:
         from .security import SecurityScanner, format_findings
         scanner = SecurityScanner(workspace)
         sub = prompt[1].lower()
