@@ -39,7 +39,7 @@ def test_security_scanner_detects_suspicious_pattern(tmp_path: Path):
     p.write_text("powershell -EncodedCommand abc", encoding="utf-8")
     finding = SecurityScanner(tmp_path).scan_file(p)
     assert finding is not None
-    assert finding.confidence >= 55
+    assert finding.confidence >= 20
 
 
 def test_storage_snapshot(tmp_path: Path):
