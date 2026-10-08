@@ -245,7 +245,7 @@ def build_parser():
             "Creation: make me a website, make me a game, create a script\n"
             "Project: project view, project status, project clear\n"
             "Checkpoint: checkpoint, rollback, changes, diff <path>\n"
-            "Inspection: inspect, validate, fix\n"
+            "Inspection: inspect, validate, fix\nSecurity: security scan, security quarantine <file>\nStorage: storage daily\nGame dev: game support\nModels: models status\nPrompt precision: prompt check <prompt>\n"
             "Git: git status, git diff, git summary\n"
             "Dashboard: dashboard\n"
             "Run 'allinagent init' to scaffold a workspace config.\n"
@@ -466,12 +466,72 @@ def run_repl(agent: Agent, colors: Colors, version: str = __version__) -> int:
     return 0
 
 
+# --- v1.5.0 command handlers -------------------------------------------------
+
+
+def v15_command(prompt: list[str], workspace: Path, args, colors: Colors) -> int | None:
+    """Handle v1.5.0 capability commands. Returns None when not a v1.5 command."""
+    if not prompt:
+        return None
+    command = prompt[0].lower()
+
+    if command == "storage" and len(prompt) >= 2 and prompt[1].lower() in ("check", "daily", "health", "scan"):
+        from .storage_health import daily_check
+        print(daily_check(workspace))
+        return 0
+
+    if command in ("security", "antivirus") and len(prompt) >= 2:
+        from .security import SecurityScanner, format_findings
+        scanner = SecurityScanner(workspace)
+        sub = prompt[1].lower()
+        if sub in ("scan", "check"):
+            print(format_findings(scanner.scan_workspace()))
+            return 0
+        if sub == "quarantine":
+            if len(prompt) < 3:
+                print(colors.yellow("Usage: allinagent security quarantine <workspace-file>"))
+                return 2
+            if not args.allow_write or args.dry_run:
+                print(colors.yellow("Quarantine requires --allow-write and cannot run with --dry-run."))
+                return 2
+            print(scanner.quarantine_file(prompt[2]))
+            return 0
+
+    if command in ("game", "gamedev", "game-dev") and len(prompt) >= 2 and prompt[1].lower() in ("support", "inspect", "info"):
+        from .game_dev import inspect_game_project
+        print(inspect_game_project(workspace).summary())
+        return 0
+
+    if command in ("models", "model") and (len(prompt) == 1 or prompt[1].lower() in ("status", "list")):
+        from .model_router import model_status
+        print(model_status())
+        return 0
+
+    if command in ("prompt", "requirements") and len(prompt) >= 2 and prompt[1].lower() in ("check", "contract"):
+        from .prompt_contract import build_contract, verification_instructions
+        text = " ".join(prompt[2:]).strip()
+        if not text:
+            print(colors.yellow("Usage: allinagent prompt check <detailed prompt>"))
+            return 2
+        contract = build_contract(text)
+        print(contract.summary())
+        print("\\n" + verification_instructions(contract))
+        return 0
+
+    return None
+
+
 # --- Main entry point --------------------------------------------------------
 
 
 def main():
     args = build_parser().parse_args()
     colors = Colors(enabled=not args.no_color)
+
+    # Handle v1.5.0 capability commands first
+    v15_result = v15_command(args.prompt, Path(args.workspace).resolve(), args, colors)
+    if v15_result is not None:
+        return v15_result
 
     # Handle subcommands
     if args.prompt and args.prompt[0].lower() == "activate":
