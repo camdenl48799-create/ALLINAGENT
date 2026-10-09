@@ -9,6 +9,29 @@ The local API Key Manager can issue two types of **ALLINAGENT-owned application 
 
 These are credentials issued by your local ALLINAGENT installation. They do **not** create or replace You.com, OpenAI, or other provider-issued API keys, and they do not provide free access to paid models. Provider credentials must still be configured separately. An `everything` key only grants the scopes that the host application actually implements and enforces.
 
+## CLI usage
+
+Create an `everything` key for a trusted app:
+
+```powershell
+allinagent keys create --key-name "My ALLINAGENT app" --key-kind everything
+```
+
+Create a normal key limited to specific model/provider scopes:
+
+```powershell
+allinagent keys create --key-name "Search app" --key-kind model --key-models "you.com,gpt"
+```
+
+List key metadata (secrets are never displayed again) or revoke a key by ID:
+
+```powershell
+allinagent keys list
+allinagent keys revoke --key-id key_0123456789abcdef
+```
+
+The key database is stored in the selected workspace's `.allinagent/api_keys.sqlite3` file. Back it up securely and never commit it to a public repository.
+
 ## Python usage
 
 ```python
