@@ -503,7 +503,7 @@ def main():
                 print(f"Created {created['kind']} key: {created['name']}")
                 print(f"Key ID: {created['id']}")
                 print(f"Scopes: {', '.join(created['scopes'])}")
-                print("\\nCOPY THIS KEY NOW — it will not be shown again:")
+                print()\n                print("COPY THIS KEY NOW — it will not be shown again:")
                 print(created["api_key"])
                 print("Keep it private. This is an ALLINAGENT key, not a provider-issued key.")
                 return 0
