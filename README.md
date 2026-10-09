@@ -240,6 +240,22 @@ pip install -e ".[llm]"
 
 No API key is required for local mode.
 
+## ALLINAGENT API Keys
+
+The local API Key Manager can issue app keys with two scope types:
+
+- **Normal model key:** limited to the model/provider scopes you name.
+- **Everything key:** a master-scope key for trusted apps connected to your ALLINAGENT host.
+
+```powershell
+allinagent keys create --key-name "Search app" --key-kind model --key-models "you.com,gpt"
+allinagent keys create --key-name "My ALLINAGENT app" --key-kind everything
+allinagent keys list
+allinagent keys revoke --key-id key_0123456789abcdef
+```
+
+A generated key is displayed only once; key metadata is stored locally under `.allinagent/api_keys.sqlite3`, and the database stores hashes rather than plaintext secrets. Keep generated keys and the database private. These are ALLINAGENT application keys—not You.com/OpenAI provider keys—and they do not grant free access to third-party models. Read [`docs/api-key-manager.md`](docs/api-key-manager.md) for details and security limitations.
+
 ## Usage Examples
 
 ### Create a website
