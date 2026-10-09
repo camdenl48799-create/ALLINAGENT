@@ -263,6 +263,10 @@ def build_parser():
     p.add_argument("--model", help="External model name")
     p.add_argument("--base-url", help="OpenAI-compatible endpoint")
     p.add_argument("--max-steps", type=int, default=8, help="External tool-loop step limit")
+    p.add_argument("--key-name", help="Name for a generated ALLINAGENT API key")
+    p.add_argument("--key-kind", choices=("model", "everything"), default="model", help="Generated key scope: model or everything")
+    p.add_argument("--key-models", help="Comma-separated model/provider scopes for a normal key")
+    p.add_argument("--key-id", help="Key ID to revoke with the keys command")
     p.add_argument("-v", "--verbose", action="store_true", help="Show mode and workspace")
     p.add_argument("--version", action="version", version=f"allinagent {__version__}")
     p.add_argument("--no-color", action="store_true", help="Disable colored output")
@@ -484,6 +488,48 @@ def main():
     if args.prompt and args.prompt[0].lower() == "doctor":
         workspace = Path(args.workspace).resolve()
         return doctor(workspace, colors)
+
+    if args.prompt and args.prompt[0].lower() == "keys":
+        from .key_manager import APIKeyManager, KeyManagerError
+        manager = APIKeyManager(Path(args.workspace).resolve() / ".allinagent" / "api_keys.sqlite3")
+        sub = args.prompt[1].lower() if len(args.prompt) > 1 else "list"
+        try:
+            if sub == "create":
+                if not args.key_name:
+                    print("ERROR: supply --key-name \"My app\"")
+                    return 2
+                models = [part.strip() for part in (args.key_models or "").split(",") if part.strip()]
+                created = manager.create_key(args.key_name, kind=args.key_kind, models=models)
+                print(f"Created {created['kind']} key: {created['name']}")
+                print(f"Key ID: {created['id']}")
+                print(f"Scopes: {', '.join(created['scopes'])}")
+                print()\n                print("COPY THIS KEY NOW — it will not be shown again:")
+                print(created["api_key"])
+                print("Keep it private. This is an ALLINAGENT key, not a provider-issued key.")
+                return 0
+            if sub == "list":
+                entries = manager.list_keys()
+                if not entries:
+                    print("No keys yet. Create one with: allinagent keys create --key-name \"My app\" --key-kind everything")
+                    return 0
+                for entry in entries:
+                    status = "active" if entry["active"] else "revoked"
+                    print(f"{entry['id']} | {entry['name']} | {entry['kind']} | {status} | scopes={', '.join(entry['scopes'])} | prefix={entry['prefix']}")
+                return 0
+            if sub == "revoke":
+                if not args.key_id:
+                    print("ERROR: supply --key-id KEY_ID")
+                    return 2
+                if manager.revoke_key(args.key_id):
+                    print("Key revoked.")
+                    return 0
+                print("No active key found with that ID.")
+                return 1
+            print("Usage: allinagent keys [list|create|revoke]")
+            return 2
+        except KeyManagerError as exc:
+            print(f"ERROR: {exc}")
+            return 2
 
     if args.prompt and args.prompt[0].lower() == "inspect":
         workspace = Path(args.workspace).resolve()
