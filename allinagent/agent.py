@@ -1,4 +1,4 @@
-"""ALLINAGENT v1.3.0 orchestration: intelligence layer over deterministic safety core.
+"""ALLINAGENT v1.8.0 orchestration: intelligence layer over deterministic safety core.
 
 Architecture:
   LLM/Analyzer -> Agent -> Planner/Loop -> Tool Registry -> Tools/Builders
