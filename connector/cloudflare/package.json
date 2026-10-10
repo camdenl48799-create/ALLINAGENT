@@ -1,0 +1,22 @@
+{
+  "name": "allinagent-chatgpt-connector",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Read-only hosted MCP connector for the public ALLINAGENT GitHub repository",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/server": "2.0.0",
+    "agents": "^0.12.0",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20261010.0",
+    "typescript": "^5.9.3",
+    "wrangler": "^4.40.0"
+  }
+}
