@@ -1,9 +1,24 @@
 # ALLINAGENT
 
-> **v1.4.0 — Current release**
+> **v1.8.0 — Browser builder release**
 
 **An independent, local-first AI creation and development agent.**
-Turn your ideas into real projects — websites, games, scripts, documents, React apps, and existing-repository code changes — all on your machine.
+Turn your ideas into real projects — websites, games, scripts, documents, React apps, desktop browser apps, and existing-repository code changes — all on your machine.
+
+## What's New in v1.8.0
+
+### Desktop Browser Builder
+
+ALLINAGENT can scaffold a desktop browser application powered by Chromium through PySide6 Qt WebEngine. It generates Python source, dependency requirements, and setup instructions. The starter includes tabs, address/search, Back, Forward, Reload, Home, and a session-only bookmark action.
+
+Create one with:
+
+    allinagent --allow-write "make me a browser called Vrax-Z Browser"
+    cd vrax-z-browser
+    python -m pip install -r requirements.txt
+    python main.py
+
+Qt WebEngine downloads a sizable dependency. This creates a browser application using Chromium; it does not implement a new browser engine. Browser-project creation requires explicit --allow-write.
 
 ## What's New in v1.4.0
 
@@ -168,6 +183,7 @@ Agent (orchestrator)
     |    +-- Document Builder
     |    +-- Script Builder
     |    +-- React Builder
+    +-- Browser Builder (PySide6 Qt WebEngine / Chromium)
     +-- Planner / Autonomous Loop
     +-- Fixers (real auto-fix for JSON, HTML, CSS, missing files)
     +-- Git Tools (safe git status, diff, summary)
@@ -194,6 +210,7 @@ Agent (orchestrator)
 | `repo_coder.py` | Existing-repository coding workflow and model context |
 | `fixers.py` | Real auto-fixers for JSON, HTML, CSS, and missing files |
 | `react_builder.py` | React/Vite project scaffolding |
+| `browser_builder.py` | Chromium-based desktop browser app scaffolding |
 | `dashboard.py` | Static HTML project dashboard generation |
 | `creator.py` | Universal creation dispatcher |
 | `website_builder.py` | Multi-page website generation and modification |
@@ -267,6 +284,15 @@ allinagent --allow-write "change the color to blue"
 
 ```bash
 allinagent --allow-write "make me a game"
+```
+
+### Create a desktop browser
+
+```powershell
+allinagent --allow-write "make me a browser called Vrax-Z Browser"
+cd vrax-z-browser
+python -m pip install -r requirements.txt
+python main.py
 ```
 
 ### Create a document
@@ -445,6 +471,9 @@ Workflow: `inspect → plan → build → validate → fix → report`
 
 ## Limitations
 
+- ALLINAGENT itself remains a CLI tool; generated browser apps have their own GUI
+- Browser builder uses Qt WebEngine's Chromium engine and requires installing PySide6
+- Browser bookmarks in the starter are session-only
 - No graphical/web UI — ALLINAGENT is a CLI tool
 - Local brain is deterministic, not a foundation model — use `--llm` for complex reasoning
 - Website generation uses vanilla HTML/CSS/JS (no JS build system)
@@ -452,7 +481,7 @@ Workflow: `inspect → plan → build → validate → fix → report`
 - Desktop app generation is not supported
 - Autonomous error fixing is limited to detection and reporting
 
-## Roadmap (v1.4.0+)
+## Roadmap (v1.8.0+)
 
 - Browser-based IDE interface
 - Streaming LLM mode
@@ -465,4 +494,4 @@ Workflow: `inspect → plan → build → validate → fix → report`
 
 MIT License.
 
-**ALLINAGENT v1.4.0 — Independent. Local-first. Honest. Built to create.**
+**ALLINAGENT v1.8.0 — Independent. Local-first. Honest. Built to create.**
