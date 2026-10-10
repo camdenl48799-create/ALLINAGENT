@@ -242,7 +242,7 @@ def build_parser():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=(
             "Inline REPL commands: help, clear, memory, history, status, explain, exit\n"
-            "Creation: make me a website, make me a game, create a script\n"
+            "Creation: make me a website, make me a game, make me a browser, create a script\n"
             "Project: project view, project status, project clear\n"
             "Checkpoint: checkpoint, rollback, changes, diff <path>\n"
             "Inspection: inspect, validate, fix\n"
@@ -310,6 +310,7 @@ Creation commands:
   make me a website    Create a website (requires --allow-write)
   make me a game       Create a game (requires --allow-write)
   make me a React app  Create a React/Vite project (requires --allow-write)
+  make me a browser    Create a Chromium-based desktop browser (requires --allow-write)
   create a script      Create a script (requires --allow-write)
   create a document    Create a document (requires --allow-write)
 
