@@ -7,6 +7,7 @@ Architecture:
 from __future__ import annotations
 from pathlib import Path
 from .autoloop import AutonomousLoop, LoopConfig
+from .browser_builder import BrowserBuilder
 from .checkpoint import CheckpointManager
 from .config import Config
 from .creator import Creator
@@ -36,6 +37,7 @@ class Agent:
                                     allow_write=allow_write, allow_shell=allow_shell)
         self.local_brain = LocalBrain(self.tools)
         self.creator = Creator(self.tools)
+        self.browser_builder = BrowserBuilder(self.tools)
         self.memory = LocalMemory(self.workspace)
         self.project = ProjectMemory(self.workspace)
         self.inspector = Inspector(self.tools)
@@ -55,7 +57,7 @@ class Agent:
         self.use_llm = use_llm
         self.max_steps = max(1, max_steps)
         self.memory_enabled = True
-        self.version = "1.4.0"
+        self.version = "1.8.0"
 
     def run(self, prompt: str) -> str:
         if not prompt.strip():
@@ -166,6 +168,12 @@ class Agent:
         if any(w in lower for w in ("sell", "payment", "stripe", "monetize",
                                      "pricing", "subscription", "env example", "env.example")):
             return self._payment_guidance(prompt)
+
+        # --- Desktop browser creation (v1.8.0) ---
+        browser_request = any(word in lower for word in ("browser", "web browser", "internet browser"))
+        creation_request = any(word in lower for word in ("make", "build", "create", "generate", "scaffold"))
+        if browser_request and creation_request:
+            return self.browser_builder.build(prompt)
 
         # --- Creation and modification requests ---
         if self.creator.can_handle(prompt) or self.request_analyzer.is_creation_request(prompt):
