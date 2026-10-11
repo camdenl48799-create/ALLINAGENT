@@ -42,7 +42,7 @@ def _workspace_files(workspace: Path) -> dict[str, bytes]:
                 raise ValueError(f"Backup input is too large: {relative}")
             # Validate JSON before including it.
             data = json.loads(raw.decode("utf-8"))
-            if relative == MEMORY_FILE and not isinstance(data, list):
+            if relative == MEMORY_FILE and (not isinstance(data, list) or not all(isinstance(item, dict) for item in data)):
                 raise ValueError("Conversation memory must be a JSON list.")
             if relative == PROJECT_FILE and not isinstance(data, dict):
                 raise ValueError("Project metadata must be a JSON object.")
