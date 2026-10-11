@@ -32,10 +32,21 @@ def _record_count(data: Any) -> int:
     return 0
 
 
+def _has_symlink_component(workspace: Path, relative: str) -> bool:
+    current = workspace
+    for part in Path(relative).parts:
+        current = current / part
+        if current.is_symlink():
+            return True
+    return False
+
+
 def _workspace_files(workspace: Path) -> dict[str, bytes]:
     found: dict[str, bytes] = {}
     for relative in sorted(_ALLOWED_FILES):
         path = workspace / relative
+        if _has_symlink_component(workspace, relative):
+            raise ValueError(f"Refusing to follow a symlink in backup path: {relative}")
         if path.is_file():
             raw = path.read_bytes()
             if len(raw) > MAX_BACKUP_BYTES:
@@ -170,6 +181,8 @@ def restore_backup(workspace: Path, backup_path: Path, *, replace: bool = False)
     manifest, files = _read_verified(backup_path)
     conflicts = []
     for relative, raw in files.items():
+        if _has_symlink_component(workspace, relative):
+            raise ValueError(f"Refusing to restore through a symlink: {relative}")
         destination = workspace / relative
         if destination.is_file() and destination.read_bytes() != raw:
             conflicts.append(relative)
