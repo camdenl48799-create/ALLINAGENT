@@ -105,6 +105,8 @@ class ProjectMemory:
         """Track an important project file."""
         data = self._load()
         if not data:
+            if self.load_error:
+                raise OSError(self.load_error)
             return
         files = data.get("important_files", [])
         entry = {"path": path, "description": description}
@@ -117,6 +119,8 @@ class ProjectMemory:
         """Record an important project decision."""
         data = self._load()
         if not data:
+            if self.load_error:
+                raise OSError(self.load_error)
             return
         decisions = data.get("decisions", [])
         decisions.append({
@@ -130,6 +134,8 @@ class ProjectMemory:
         """Add a pending or completed task."""
         data = self._load()
         if not data:
+            if self.load_error:
+                raise OSError(self.load_error)
             return
         tasks = data.get("pending_tasks", [])
         tasks.append({"task": task[:MAX_TEXT], "status": status, "timestamp": datetime.now(timezone.utc).isoformat()})
@@ -153,6 +159,8 @@ class ProjectMemory:
         """Record a completed feature in project memory."""
         data = self._load()
         if not data:
+            if self.load_error:
+                raise OSError(self.load_error)
             return
         features = data.get("completed_features", [])
         features.append({"feature": feature[:MAX_TEXT], "timestamp": datetime.now(timezone.utc).isoformat()})
@@ -163,6 +171,8 @@ class ProjectMemory:
         """Mark a task as completed."""
         data = self._load()
         if not data:
+            if self.load_error:
+                raise OSError(self.load_error)
             return
         tasks = data.get("pending_tasks", [])
         for t in tasks:
@@ -175,6 +185,8 @@ class ProjectMemory:
         """Record a known bug."""
         data = self._load()
         if not data:
+            if self.load_error:
+                raise OSError(self.load_error)
             return
         bugs = data.get("known_bugs", [])
         bugs.append({"description": description[:MAX_TEXT], "status": status, "timestamp": datetime.now(timezone.utc).isoformat()})
@@ -185,6 +197,8 @@ class ProjectMemory:
         """Store a user note/preference."""
         data = self._load()
         if not data:
+            if self.load_error:
+                raise OSError(self.load_error)
             return
         prefs = data.get("user_preferences", [])
         prefs.append({"note": note[:MAX_TEXT], "timestamp": datetime.now(timezone.utc).isoformat()})
@@ -195,7 +209,7 @@ class ProjectMemory:
         """Show pending and completed tasks."""
         data = self._load()
         if not data:
-            return "No project initialized."
+            return f"Project metadata needs attention: {self.load_error}" if self.load_error else "No project initialized."
         tasks = data.get("pending_tasks", [])
         if not tasks:
             return "No tasks recorded."
@@ -210,7 +224,7 @@ class ProjectMemory:
         """Show known bugs."""
         data = self._load()
         if not data:
-            return "No project initialized."
+            return f"Project metadata needs attention: {self.load_error}" if self.load_error else "No project initialized."
         bugs = data.get("known_bugs", [])
         if not bugs:
             return "No known bugs."
@@ -225,7 +239,7 @@ class ProjectMemory:
         """Show project decisions."""
         data = self._load()
         if not data:
-            return "No project initialized."
+            return f"Project metadata needs attention: {self.load_error}" if self.load_error else "No project initialized."
         decisions = data.get("decisions", [])
         if not decisions:
             return "No decisions recorded."
@@ -238,6 +252,8 @@ class ProjectMemory:
         """Return a formatted view of project context."""
         data = self._load()
         if not data:
+            if self.load_error:
+                return f"Project metadata needs attention: {self.load_error}"
             return "No project context found. Use 'create <project>' to start one."
 
         lines = ["ALLINAGENT PROJECT CONTEXT", ""]
