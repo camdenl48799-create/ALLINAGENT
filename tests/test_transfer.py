@@ -61,3 +61,22 @@ def test_invalid_package_does_not_mutate_workspace(tmp_path: Path):
     with pytest.raises(ValueError):
         import_workspace(workspace, package, conflict="replace")
     assert existing.read_text(encoding="utf-8") == '[{"prompt":"keep"}]'
+
+def test_export_refuses_to_overwrite_source_memory(tmp_path: Path):
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    source = workspace / ".allinagent-memory.json"
+    original = '[{"prompt":"keep"}]'
+    source.write_text(original, encoding="utf-8")
+    with pytest.raises(ValueError):
+        export_workspace(workspace, source)
+    assert source.read_text(encoding="utf-8") == original
+
+
+def test_package_rejects_unexpected_path(tmp_path: Path):
+    package = tmp_path / "traversal.zip"
+    with zipfile.ZipFile(package, "w") as archive:
+        archive.writestr("manifest.json", '{"format_version":1,"files":{ "../outside.json": {} }}')
+        archive.writestr("../outside.json", "{}")
+    with pytest.raises(ValueError):
+        inspect_package(package)
