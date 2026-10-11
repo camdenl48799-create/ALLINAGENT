@@ -10,7 +10,7 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 
-from .memory import MEMORY_FILENAME
+from ._persistence import atomic_write_json
 
 PROJECT_DIR = ".allinagent"
 PROJECT_FILE = "project.json"
@@ -25,25 +25,25 @@ class ProjectMemory:
         self.workspace = workspace.resolve()
         self.project_dir = self.workspace / PROJECT_DIR
         self.path = self.project_dir / PROJECT_FILE
+        self.load_error: str | None = None
 
     def _load(self) -> dict:
+        self.load_error = None
         if not self.path.exists():
             return {}
         try:
             data = json.loads(self.path.read_text(encoding="utf-8"))
-            return data if isinstance(data, dict) else {}
-        except (OSError, ValueError, TypeError):
+            if not isinstance(data, dict):
+                raise ValueError("expected a JSON object")
+            return data
+        except (OSError, ValueError, TypeError) as exc:
+            self.load_error = f"Could not read project metadata ({type(exc).__name__}); the original file was preserved."
             return {}
 
     def _save(self, data: dict) -> None:
-        try:
-            self.project_dir.mkdir(parents=True, exist_ok=True)
-            self.path.write_text(
-                json.dumps(data, ensure_ascii=False, indent=2),
-                encoding="utf-8",
-            )
-        except OSError:
-            pass
+        if self.load_error:
+            raise OSError(self.load_error)
+        atomic_write_json(self.path, data)
 
     def exists(self) -> bool:
         return bool(self._load())
@@ -51,6 +51,8 @@ class ProjectMemory:
     def create(self, name: str, purpose: str, kind: str = "", technologies: list[str] | None = None) -> dict:
         """Initialize a new project context."""
         data = self._load()
+        if self.load_error:
+            raise OSError(self.load_error)
         data.update({
             "name": name,
             "purpose": purpose[:MAX_TEXT],
@@ -72,6 +74,8 @@ class ProjectMemory:
     def update(self, **kwargs) -> dict:
         """Update one or more project fields."""
         data = self._load()
+        if self.load_error:
+            raise OSError(self.load_error)
         for k, v in kwargs.items():
             if k in ("name", "purpose", "kind", "technologies", "important_files",
                      "decisions", "changes", "state"):
@@ -84,6 +88,8 @@ class ProjectMemory:
         """Record a project change."""
         data = self._load()
         if not data:
+            if self.load_error:
+                raise OSError(self.load_error)
             return
         changes = data.get("changes", [])
         changes.append({
@@ -99,6 +105,8 @@ class ProjectMemory:
         """Track an important project file."""
         data = self._load()
         if not data:
+            if self.load_error:
+                raise OSError(self.load_error)
             return
         files = data.get("important_files", [])
         entry = {"path": path, "description": description}
@@ -111,6 +119,8 @@ class ProjectMemory:
         """Record an important project decision."""
         data = self._load()
         if not data:
+            if self.load_error:
+                raise OSError(self.load_error)
             return
         decisions = data.get("decisions", [])
         decisions.append({
@@ -124,6 +134,8 @@ class ProjectMemory:
         """Add a pending or completed task."""
         data = self._load()
         if not data:
+            if self.load_error:
+                raise OSError(self.load_error)
             return
         tasks = data.get("pending_tasks", [])
         tasks.append({"task": task[:MAX_TEXT], "status": status, "timestamp": datetime.now(timezone.utc).isoformat()})
@@ -147,6 +159,8 @@ class ProjectMemory:
         """Record a completed feature in project memory."""
         data = self._load()
         if not data:
+            if self.load_error:
+                raise OSError(self.load_error)
             return
         features = data.get("completed_features", [])
         features.append({"feature": feature[:MAX_TEXT], "timestamp": datetime.now(timezone.utc).isoformat()})
@@ -157,6 +171,8 @@ class ProjectMemory:
         """Mark a task as completed."""
         data = self._load()
         if not data:
+            if self.load_error:
+                raise OSError(self.load_error)
             return
         tasks = data.get("pending_tasks", [])
         for t in tasks:
@@ -169,6 +185,8 @@ class ProjectMemory:
         """Record a known bug."""
         data = self._load()
         if not data:
+            if self.load_error:
+                raise OSError(self.load_error)
             return
         bugs = data.get("known_bugs", [])
         bugs.append({"description": description[:MAX_TEXT], "status": status, "timestamp": datetime.now(timezone.utc).isoformat()})
@@ -179,6 +197,8 @@ class ProjectMemory:
         """Store a user note/preference."""
         data = self._load()
         if not data:
+            if self.load_error:
+                raise OSError(self.load_error)
             return
         prefs = data.get("user_preferences", [])
         prefs.append({"note": note[:MAX_TEXT], "timestamp": datetime.now(timezone.utc).isoformat()})
@@ -189,7 +209,7 @@ class ProjectMemory:
         """Show pending and completed tasks."""
         data = self._load()
         if not data:
-            return "No project initialized."
+            return f"Project metadata needs attention: {self.load_error}" if self.load_error else "No project initialized."
         tasks = data.get("pending_tasks", [])
         if not tasks:
             return "No tasks recorded."
@@ -204,7 +224,7 @@ class ProjectMemory:
         """Show known bugs."""
         data = self._load()
         if not data:
-            return "No project initialized."
+            return f"Project metadata needs attention: {self.load_error}" if self.load_error else "No project initialized."
         bugs = data.get("known_bugs", [])
         if not bugs:
             return "No known bugs."
@@ -219,7 +239,7 @@ class ProjectMemory:
         """Show project decisions."""
         data = self._load()
         if not data:
-            return "No project initialized."
+            return f"Project metadata needs attention: {self.load_error}" if self.load_error else "No project initialized."
         decisions = data.get("decisions", [])
         if not decisions:
             return "No decisions recorded."
@@ -232,6 +252,8 @@ class ProjectMemory:
         """Return a formatted view of project context."""
         data = self._load()
         if not data:
+            if self.load_error:
+                return f"Project metadata needs attention: {self.load_error}"
             return "No project context found. Use 'create <project>' to start one."
 
         lines = ["ALLINAGENT PROJECT CONTEXT", ""]
@@ -288,7 +310,8 @@ class ProjectMemory:
     def clear(self) -> bool:
         """Delete all project memory."""
         try:
-            self.path.unlink(missing_ok=True)
+            atomic_write_json(self.path, {})
+            self.load_error = None
             return True
         except OSError:
             return False
@@ -297,6 +320,8 @@ class ProjectMemory:
         """Return a compact status summary."""
         data = self._load()
         if not data:
+            if self.load_error:
+                return f"ALLINAGENT PROJECT\n  Warning: {self.load_error}\n  Location: {self.path}"
             return "ALLINAGENT PROJECT\n  No project initialized."
         return "\n".join([
             "ALLINAGENT PROJECT",

@@ -1,9 +1,35 @@
 # ALLINAGENT
 
-> **v1.4.0 — Current release**
+> **v1.6.0 — Current release**
 
 **An independent, local-first AI creation and development agent.**
 Turn your ideas into real projects — websites, games, scripts, documents, React apps, and existing-repository code changes — all on your machine.
+
+## What's New in v1.6.0
+
+v1.6.0 strengthens local data durability and adds explicit backup, transfer, and browser-workspace tools.
+
+### Reliable local memory
+- Conversation memory and project metadata are written through same-directory temporary files and atomic replacement.
+- Malformed JSON is reported and preserved for diagnosis rather than being silently treated as a successful empty save.
+- Persistence errors are surfaced to callers instead of being silently swallowed.
+
+### Verified backups and workspace transfer
+- `allinagent backup create`, `allinagent backup list`, `allinagent backup verify PATH`, and `allinagent backup restore PATH`.
+- Restore refuses to replace different existing data unless `--replace` is supplied. A checkpoint backup is created before restoring over existing supported data.
+- `allinagent export PATH.zip` creates a versioned package of conversation memory and project metadata.
+- `allinagent import PATH.zip` validates the package before writing; existing data is preserved or merged by default. Use `--replace` only when you intend to replace conflicting data.
+- Packages include SHA-256 checks and are bounded in size. Import/export does not delete the source.
+
+### Browser workspace foundation
+Open `web/index.html` in a browser to create, view, and delete browser-local drafts. The browser workspace is independent of the Python CLI: it does not access CLI files, run cloud AI, or sync drafts between devices. See [web/README.md](web/README.md).
+
+### Data locations and privacy
+- Conversation memory: `.allinagent-memory.json` in the selected workspace.
+- Project metadata: `.allinagent/project.json` in the selected workspace.
+- Default backups: `~/.allinagent/backups/` (on Windows, the home directory is the current user's home folder).
+- Export packages contain user-authored memory/project data. Inspect them before sharing; do not assume secrets inside free-form text can always be detected.
+- Local mode does not require an API key. External model use remains opt-in.
 
 ## What's New in v1.4.0
 
@@ -200,7 +226,7 @@ Agent (orchestrator)
 | `game_builder.py` | Playable browser game generation |
 | `document_builder.py` | Document generation (README, spec, guide, manual, changelog, plan) |
 | `planner.py` | Task planning with progress summaries |
-| `project.py` | Project metadata and context store |
+| `project.py` | Project metadata and context store |\n| `backup/store.py` | Versioned local backup, verification, and guarded restore |\n| `transfer/package.py` | Validated ZIP export/import and conflict handling |
 | `validators.py` | File validation (Python ast, JSON, TOML, HTML, CSS, JS) |
 | `guardrails.py` | Destructive operation classification and protection |
 | `local_brain.py` | Deterministic offline intent router |
@@ -465,4 +491,4 @@ Workflow: `inspect → plan → build → validate → fix → report`
 
 MIT License.
 
-**ALLINAGENT v1.4.0 — Independent. Local-first. Honest. Built to create.**
+**ALLINAGENT v1.6.0 — Independent. Local-first. Honest. Built to create.**

@@ -249,7 +249,9 @@ def build_parser():
             "Git: git status, git diff, git summary\n"
             "Dashboard: dashboard\n"
             "Run 'allinagent init' to scaffold a workspace config.\n"
-            "Run 'allinagent doctor' to run diagnostics."
+            "Run 'allinagent doctor' to run diagnostics.\n"
+            "Backup: allinagent backup create|list|verify PATH|restore PATH\n"
+            "Transfer: allinagent export PATH | allinagent import PATH"
         ),
     )
     p.add_argument("prompt", nargs="*", help="Task for ALLINAGENT")
@@ -267,6 +269,8 @@ def build_parser():
     p.add_argument("--version", action="version", version=f"allinagent {__version__}")
     p.add_argument("--no-color", action="store_true", help="Disable colored output")
     p.add_argument("--no-memory", action="store_true", help="Disable conversation memory storage")
+    p.add_argument("--replace", action="store_true", help="Explicitly allow replacing existing imported/restored data")
+    p.add_argument("--backup-dir", help="Optional directory for local backup files")
     p.add_argument("--json", action="store_true", help="Output results as JSON (non-interactive)")
     return p
 
@@ -472,6 +476,69 @@ def run_repl(agent: Agent, colors: Colors, version: str = __version__) -> int:
 def main():
     args = build_parser().parse_args()
     colors = Colors(enabled=not args.no_color)
+
+    # Handle local backup and transfer commands before starting the agent.
+    if args.prompt and args.prompt[0].lower() == "backup":
+        from .backup import create_backup, list_backups, verify_backup, restore_backup
+        workspace = Path(args.workspace).resolve()
+        action = args.prompt[1].lower() if len(args.prompt) > 1 else "list"
+        backup_root = Path(args.backup_dir).expanduser() if args.backup_dir else None
+        try:
+            if action == "create":
+                path = create_backup(workspace, backup_root)
+                print(f"Backup created and verified: {path}")
+                return 0
+            if action == "list":
+                backups = list_backups(backup_root)
+                if not backups:
+                    print("No local backups found.")
+                for item in backups:
+                    state = "VALID" if item.get("valid") else "INVALID"
+                    print(f"{state}  {item['path']}")
+                return 0
+            if action == "verify" and len(args.prompt) >= 3:
+                result = verify_backup(Path(args.prompt[2]))
+                print(json.dumps(result, indent=2))
+                return 0
+            if action == "restore" and len(args.prompt) >= 3:
+                result = restore_backup(workspace, Path(args.prompt[2]), replace=args.replace)
+                print(json.dumps(result, indent=2))
+                return 0
+            print("Usage: allinagent backup create|list|verify PATH|restore PATH [--replace]")
+            return 2
+        except (OSError, ValueError) as exc:
+            print(f"ERROR: {exc}")
+            return 1
+
+    if args.prompt and args.prompt[0].lower() == "export":
+        from .transfer import export_workspace
+        workspace = Path(args.workspace).resolve()
+        if len(args.prompt) < 2:
+            print("Usage: allinagent export PATH")
+            return 2
+        try:
+            result = export_workspace(workspace, Path(args.prompt[1]))
+            print(json.dumps(result, indent=2))
+            return 0
+        except (OSError, ValueError) as exc:
+            print(f"ERROR: {exc}")
+            return 1
+
+    if args.prompt and args.prompt[0].lower() == "import":
+        from .transfer import import_workspace, inspect_package
+        workspace = Path(args.workspace).resolve()
+        if len(args.prompt) < 2:
+            print("Usage: allinagent import PATH [--replace]")
+            return 2
+        try:
+            print("Package preview:")
+            print(json.dumps(inspect_package(Path(args.prompt[1])), indent=2))
+            result = import_workspace(workspace, Path(args.prompt[1]), conflict="replace" if args.replace else "preserve")
+            print(json.dumps(result, indent=2))
+            return 0
+        except (OSError, ValueError) as exc:
+            print(f"ERROR: {exc}")
+            return 1
 
     # Handle subcommands
     if args.prompt and args.prompt[0].lower() == "activate":
