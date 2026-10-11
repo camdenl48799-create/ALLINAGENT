@@ -26,7 +26,9 @@ def test_export_import_round_trip_and_source_preservation(tmp_path: Path):
     assert (source / ".allinagent-memory.json").read_bytes() == before
 
 
-def test_import_merges_unique_memory_and_preserves_project_conflicts(tmp_path: Path):
+def test_import_merges_unique_memory_and_preserves_project_conflicts(tmp_path: Path, monkeypatch):
+    import allinagent.backup.store as backup_store
+    monkeypatch.setattr(backup_store, "_default_root", lambda: tmp_path / "backups")
     source = tmp_path / "source"
     target = tmp_path / "target"
     source.mkdir()
