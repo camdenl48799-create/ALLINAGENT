@@ -21,6 +21,15 @@ _ALLOWED_FILES = {MEMORY_FILE, PROJECT_FILE}
 _MANIFEST = "manifest.json"
 
 
+def _has_symlink_component(workspace: Path, relative: str) -> bool:
+    current = workspace
+    for part in Path(relative).parts:
+        current = current / part
+        if current.is_symlink():
+            return True
+    return False
+
+
 def _read_workspace(workspace: Path, include_memory: bool, include_project: bool) -> dict[str, bytes]:
     files: dict[str, bytes] = {}
     requested = []
@@ -31,6 +40,8 @@ def _read_workspace(workspace: Path, include_memory: bool, include_project: bool
     total = 0
     for relative in requested:
         path = workspace / relative
+        if _has_symlink_component(workspace, relative):
+            raise ValueError(f"Refusing to export through a symlink: {relative}")
         if not path.is_file():
             continue
         raw = path.read_bytes()
@@ -157,6 +168,8 @@ def import_workspace(workspace: Path, package_path: Path, *, conflict: str = "pr
     conflicts: list[str] = []
     imported_counts: dict[str, int] = {}
     for relative, new_data in incoming.items():
+        if _has_symlink_component(workspace, relative):
+            raise ValueError(f"Refusing to import through a symlink: {relative}")
         destination = workspace / relative
         current = None
         if destination.is_file():
