@@ -186,11 +186,11 @@ def restore_backup(workspace: Path, backup_path: Path, *, replace: bool = False)
             destination.parent.mkdir(parents=True, exist_ok=True)
             fd, name = tempfile.mkstemp(prefix=f".{destination.name}.restore-", suffix=".tmp", dir=destination.parent)
             temporary = Path(name)
+            staged.append((temporary, destination))
             with os.fdopen(fd, "wb") as stream:
                 stream.write(raw)
                 stream.flush()
                 os.fsync(stream.fileno())
-            staged.append((temporary, destination))
         for temporary, destination in staged:
             os.replace(temporary, destination)
     finally:
