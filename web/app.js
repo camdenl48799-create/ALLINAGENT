@@ -33,7 +33,8 @@
       if (!raw) return;
       const parsed = JSON.parse(raw);
       if (!Array.isArray(parsed) || parsed.some(item => !item || typeof item.id !== "string" || typeof item.title !== "string" || typeof item.body !== "string")) {
-        status.textContent = "Saved browser data has an invalid format. It was left untouched.";
+        storageAvailable = false;
+        status.textContent = "Saved browser data has an invalid format. It was left untouched; saving is disabled to protect it.";
         return;
       }
       drafts = parsed;
