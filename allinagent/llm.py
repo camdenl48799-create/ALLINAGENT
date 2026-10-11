@@ -18,9 +18,14 @@ TOOLS = [
  {"type":"function","function":{"name":"delete_file","description":"Delete a file or directory","parameters":{"type":"object","properties":{"path":{"type":"string"},"confirm":{"type":"boolean","default":false}},"required":["path"]}}},
  {"type":"function","function":{"name":"search_text","description":"Search workspace text","parameters":{"type":"object","properties":{"needle":{"type":"string"}},"required":["needle"]}}},
  {"type":"function","function":{"name":"run_shell","description":"Run a workspace command; requires shell permission","parameters":{"type":"object","properties":{"command":{"type":"string"}},"required":["command"]}}},
+
+ {"type":"function","function":{"name":"you_search","description":"Search the live web using You.com and return source URLs and summaries. Use for current facts and research; cite returned URLs in your answer.","parameters":{"type":"object","properties":{"query":{"type":"string","description":"Question or topic to search for"},"count":{"type":"integer","description":"Maximum number of results (1-10)","minimum":1,"maximum":10}},"required":["query"]}}},
 ]
 
 def call_tool(t, name, args):
+    if name == "you_search":
+        from .you_search import search_web
+        return search_web(args.get("query", ""), count=args.get("count", 5))
     if name == "project_summary": return t.project_summary()
     if name == "storage_report": return t.storage_report()
     if name == "list_dir": return t.list_dir(args.get("path", "."))
