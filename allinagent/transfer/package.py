@@ -72,6 +72,9 @@ def export_workspace(workspace: Path, output_path: Path, *, include_memory: bool
         },
     }
     output_path = Path(output_path).expanduser().resolve()
+    protected_sources = {(workspace / MEMORY_FILE).resolve(), (workspace / PROJECT_FILE).resolve()}
+    if output_path in protected_sources:
+        raise ValueError("Export output cannot overwrite a source memory/project file.")
     output_path.parent.mkdir(parents=True, exist_ok=True)
     fd, temp_name = tempfile.mkstemp(prefix=".allinagent-export-", suffix=".tmp", dir=output_path.parent)
     os.close(fd)
