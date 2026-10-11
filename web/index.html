@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="A private, browser-local workspace shell for ALLINAGENT.">
+  <title>ALLINAGENT Workspace</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="#home" aria-label="ALLINAGENT home">ALLINAGENT</a>
+    <nav aria-label="Main navigation">
+      <a href="#home">Home</a>
+      <a href="#workspace">Workspace</a>
+      <a href="#privacy">Privacy</a>
+    </nav>
+  </header>
+  <main id="home">
+    <section class="hero" aria-labelledby="hero-title">
+      <p class="eyebrow">LOCAL-FIRST TOOLS</p>
+      <h1 id="hero-title">Your ideas. Your workspace.</h1>
+      <p>Keep lightweight draft conversations in this browser. This page does not connect to the ALLINAGENT command-line app or run a cloud AI model.</p>
+      <a class="primary-link" href="#workspace">Open workspace</a>
+    </section>
+    <section id="privacy" class="notice" aria-labelledby="privacy-title">
+      <h2 id="privacy-title">Browser-local storage</h2>
+      <p>Drafts are stored only in this browser's local storage. They are not uploaded, synced to another device, or shared with the Python CLI. Clearing browser data can remove them. Do not save passwords, API keys, or other secrets here.</p>
+    </section>
+    <section id="workspace" class="workspace" aria-labelledby="workspace-title">
+      <h2 id="workspace-title">Draft workspace</h2>
+      <p id="storage-status" role="status" aria-live="polite">Checking browser storage…</p>
+      <form id="draft-form">
+        <label for="draft-title">Draft title</label>
+        <input id="draft-title" name="title" maxlength="120" required autocomplete="off" placeholder="e.g. Website idea">
+        <label for="draft-body">Notes</label>
+        <textarea id="draft-body" name="body" rows="5" maxlength="12000" placeholder="Write a draft or notes…"></textarea>
+        <button type="submit">Save draft</button>
+      </form>
+      <h3>Saved drafts</h3>
+      <ul id="draft-list" aria-label="Saved drafts"></ul>
+      <article id="draft-view" class="draft-view" aria-live="polite" hidden>
+        <h3 id="view-title"></h3>
+        <p id="view-date" class="muted"></p>
+        <pre id="view-body"></pre>
+        <button id="delete-draft" class="danger" type="button">Delete this draft</button>
+      </article>
+    </section>
+  </main>
+  <footer><p>ALLINAGENT · Browser workspace foundation · No account or cloud sync</p></footer>
+</body>
+</html>
