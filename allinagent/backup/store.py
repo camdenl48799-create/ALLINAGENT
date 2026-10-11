@@ -85,6 +85,7 @@ def create_backup(workspace: Path, backup_root: Path | None = None) -> Path:
         with zipfile.ZipFile(temporary, "r") as archive:
             if archive.testzip() is not None:
                 raise ValueError("Backup archive failed ZIP integrity verification.")
+        _read_verified(temporary)
         os.replace(temporary, output)
         return output
     finally:
