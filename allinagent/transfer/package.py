@@ -75,6 +75,7 @@ def export_workspace(workspace: Path, output_path: Path, *, include_memory: bool
         with zipfile.ZipFile(temporary, "r") as archive:
             if archive.testzip() is not None:
                 raise ValueError("Export package failed ZIP integrity verification.")
+        _inspect(temporary)
         os.replace(temporary, output_path)
     finally:
         temporary.unlink(missing_ok=True)
