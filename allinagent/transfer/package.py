@@ -95,8 +95,8 @@ def _inspect(package_path: Path) -> tuple[dict, dict[str, Any]]:
                 raise ValueError("Package contains duplicate paths.")
             if _MANIFEST not in names or any(name not in _ALLOWED_FILES | {_MANIFEST} for name in names):
                 raise ValueError("Package contains unsupported paths.")
-            if any(info.file_size > MAX_PACKAGE_BYTES for info in infos):
-                raise ValueError("Package entry exceeds the supported size limit.")
+            if sum(info.file_size for info in infos) > MAX_PACKAGE_BYTES:
+                raise ValueError("Package contents exceed the supported size limit.")
             manifest = json.loads(archive.read(_MANIFEST).decode("utf-8"))
             if not isinstance(manifest, dict) or manifest.get("format_version") != FORMAT_VERSION:
                 raise ValueError("Unsupported or malformed package manifest.")
