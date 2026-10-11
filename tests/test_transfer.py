@@ -80,3 +80,43 @@ def test_package_rejects_unexpected_path(tmp_path: Path):
         archive.writestr("../outside.json", "{}")
     with pytest.raises(ValueError):
         inspect_package(package)
+
+def test_import_write_failure_leaves_a_recoverable_checkpoint(tmp_path: Path, monkeypatch):
+    import allinagent.backup.store as backup_store
+    import allinagent.transfer.package as transfer_package
+
+    checkpoint_root = tmp_path / "checkpoints"
+    monkeypatch.setattr(backup_store, "_default_root", lambda: checkpoint_root)
+    source = tmp_path / "source"
+    target = tmp_path / "target"
+    source.mkdir()
+    target.mkdir()
+    (source / ".allinagent-memory.json").write_text('[{"prompt":"incoming"}]', encoding="utf-8")
+    (source / ".allinagent").mkdir()
+    (source / ".allinagent" / "project.json").write_text('{"name":"incoming"}', encoding="utf-8")
+    original_memory = '[{"prompt":"current"}]'
+    original_project = '{"name":"current"}'
+    (target / ".allinagent-memory.json").write_text(original_memory, encoding="utf-8")
+    (target / ".allinagent").mkdir()
+    (target / ".allinagent" / "project.json").write_text(original_project, encoding="utf-8")
+    package = tmp_path / "package.zip"
+    export_workspace(source, package)
+
+    real_write = transfer_package.atomic_write_json
+    calls = {"count": 0}
+
+    def fail_second_write(path, data, **kwargs):
+        calls["count"] += 1
+        if calls["count"] == 2:
+            raise OSError("simulated disk failure")
+        return real_write(path, data, **kwargs)
+
+    monkeypatch.setattr(transfer_package, "atomic_write_json", fail_second_write)
+    with pytest.raises(OSError, match="simulated disk failure"):
+        import_workspace(target, package)
+    checkpoints = list(checkpoint_root.glob("allinagent-backup-*.zip"))
+    assert checkpoints, "pre-import checkpoint should remain available"
+    from allinagent.backup import restore_backup
+    restore_backup(target, checkpoints[0], replace=True)
+    assert (target / ".allinagent-memory.json").read_text(encoding="utf-8") == original_memory
+    assert (target / ".allinagent" / "project.json").read_text(encoding="utf-8") == original_project
