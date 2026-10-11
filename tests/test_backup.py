@@ -55,6 +55,6 @@ def test_backup_digest_detects_tampering(tmp_path: Path):
     changed = tmp_path / "changed.zip"
     with zipfile.ZipFile(backup, "r") as source, zipfile.ZipFile(changed, "w") as target:
         for name in source.namelist():
-            target.writestr(name, b'[]' if name == ".allinagent-memory.json" else source.read(name))
+            target.writestr(name, b'[{}]' if name == ".allinagent-memory.json" else source.read(name))
     with pytest.raises(ValueError):
         verify_backup(changed)
