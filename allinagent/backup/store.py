@@ -104,8 +104,8 @@ def _read_verified(backup_path: Path) -> tuple[dict, dict[str, bytes]]:
                 raise ValueError("Backup contains duplicate paths.")
             if _MANIFEST not in names or any(name not in _ALLOWED_FILES | {_MANIFEST} for name in names):
                 raise ValueError("Backup contains unsupported paths.")
-            if any(info.file_size > MAX_BACKUP_BYTES for info in archive.infolist()):
-                raise ValueError("Backup entry exceeds the supported size limit.")
+            if sum(info.file_size for info in archive.infolist()) > MAX_BACKUP_BYTES:
+                raise ValueError("Backup contents exceed the supported size limit.")
             manifest = json.loads(archive.read(_MANIFEST).decode("utf-8"))
             if not isinstance(manifest, dict) or manifest.get("format_version") != FORMAT_VERSION:
                 raise ValueError("Unsupported or malformed backup manifest.")
@@ -177,7 +177,7 @@ def restore_backup(workspace: Path, backup_path: Path, *, replace: bool = False)
     if any((workspace / name).exists() and not (workspace / name).is_file() for name in files):
         raise ValueError("Restore destination conflicts with an existing non-file path.")
     # Checkpoint current supported data before an explicitly requested replacement.
-    if replace and conflicts and _workspace_files(workspace):
+    if _workspace_files(workspace):
         create_backup(workspace)
     staged = []
     try:
