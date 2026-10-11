@@ -50,11 +50,26 @@ def test_corrupt_backup_is_rejected_without_changes(tmp_path: Path):
 def test_backup_digest_detects_tampering(tmp_path: Path):
     workspace = tmp_path / "workspace"
     workspace.mkdir()
-    (workspace / ".allinagent-memory.json").write_text("[]", encoding="utf-8")
+    (workspace / ".allinagent-memory.json").write_text('[{"a":1}]', encoding="utf-8")
     backup = create_backup(workspace, tmp_path / "backups")
     changed = tmp_path / "changed.zip"
     with zipfile.ZipFile(backup, "r") as source, zipfile.ZipFile(changed, "w") as target:
         for name in source.namelist():
-            target.writestr(name, b'[{}]' if name == ".allinagent-memory.json" else source.read(name))
+            target.writestr(name, b'[{"a":2}]' if name == ".allinagent-memory.json" else source.read(name))
     with pytest.raises(ValueError):
         verify_backup(changed)
+
+def test_restore_replace_checkpoints_and_restores_data(tmp_path: Path, monkeypatch):
+    import allinagent.backup.store as backup_store
+    monkeypatch.setattr(backup_store, "_default_root", lambda: tmp_path / "checkpoints")
+    source = tmp_path / "source"
+    target = tmp_path / "target"
+    source.mkdir()
+    target.mkdir()
+    (source / ".allinagent-memory.json").write_text('[{"prompt":"backup"}]', encoding="utf-8")
+    (target / ".allinagent-memory.json").write_text('[{"prompt":"current"}]', encoding="utf-8")
+    backup = create_backup(source, tmp_path / "exports")
+    result = restore_backup(target, backup, replace=True)
+    assert result["conflicts_replaced"] == [".allinagent-memory.json"]
+    assert json.loads((target / ".allinagent-memory.json").read_text(encoding="utf-8"))[0]["prompt"] == "backup"
+    assert list((tmp_path / "checkpoints").glob("allinagent-backup-*.zip"))
