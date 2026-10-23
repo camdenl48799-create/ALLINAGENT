@@ -11,9 +11,11 @@ license = {text = "MIT"}
 
 [project.optional-dependencies]
 llm = ["openai>=1.0"]
+audio = ["librosa>=0.10", "numpy>=1.23"]
 
 [project.scripts]
 allinagent = "allinagent.cli:main"
+allinagent-beat-saber = "allinagent.beat_saber:main"
 
 [tool.setuptools.packages.find]
 include = ["allinagent*"]
